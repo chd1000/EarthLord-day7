@@ -9,28 +9,7 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        NavigationStack {
-            VStack {
-                Image(systemName: "globe")
-                    .imageScale(.large)
-                    .foregroundStyle(.tint)
-                Text("Hello, world!")
-
-                Text("hello")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-
-                NavigationLink(destination: TestView()) {
-                    Text("进入测试页")
-                        .padding()
-                        .background(Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                }
-                .padding(.top, 20)
-            }
-            .padding()
-        }
+        MainTabView()
     }
 }
 
