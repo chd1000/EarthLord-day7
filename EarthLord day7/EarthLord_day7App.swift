@@ -9,9 +9,12 @@ import SwiftUI
 
 @main
 struct EarthLord_day7App: App {
+    @StateObject private var authManager = AuthManager()
+
     var body: some Scene {
         WindowGroup {
             RootView()
+                .environmentObject(authManager)
         }
     }
 }

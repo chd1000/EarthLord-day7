@@ -153,7 +153,7 @@ struct SplashView: View {
     private func simulateLoading() {
         // 模拟加载过程
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            loadingText = "正在加载资源..."
+            loadingText = "正在检查会话..."
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
