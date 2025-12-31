@@ -11,7 +11,13 @@ import Supabase
 // MARK: - Supabase 客户端初始化
 let supabase = SupabaseClient(
     supabaseURL: URL(string: "https://bgjosiapfuiuyuczxhgp.supabase.co")!,
-    supabaseKey: "sb_publishable_nkHYaKHIdAnO8F_OiqhLUA_pHf0P_0M"
+    supabaseKey: "sb_publishable_nkHYaKHIdAnO8F_OiqhLUA_pHf0P_0M",
+    options: SupabaseClientOptions(
+        auth: SupabaseClientOptions.AuthOptions(
+            // 修复警告：使用新的会话行为，本地存储的会话总是被发出
+            emitLocalSessionAsInitialSession: true
+        )
+    )
 )
 
 // MARK: - Supabase 测试视图

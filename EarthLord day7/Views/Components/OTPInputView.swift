@@ -49,7 +49,7 @@ struct OTPInputView: View {
                 .focused($focusedField, equals: 0)
                 .frame(width: 1, height: 1)
                 .opacity(0.01)
-                .onChange(of: otpCode) { newValue in
+                .onChange(of: otpCode) { oldValue, newValue in
                     // 限制只能输入6位数字
                     let filtered = newValue.filter { $0.isNumber }
                     if filtered.count <= codeLength {

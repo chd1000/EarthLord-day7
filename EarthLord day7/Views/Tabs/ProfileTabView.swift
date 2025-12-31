@@ -237,7 +237,8 @@ struct ProfileTabView: View {
     /// 显示名称
     private var displayName: String {
         if let metadata = authManager.currentUser?.userMetadata,
-           let name = metadata["name"] as? String {
+           let nameJSON = metadata["name"],
+           case .string(let name) = nameJSON {
             return name
         }
         return authManager.currentUser?.email?.components(separatedBy: "@").first?.capitalized ?? "开拓者"
