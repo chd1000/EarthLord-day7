@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		36A998722F0552EC007EAF74 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 36A998712F0552EC007EAF74 /* GoogleSignIn */; };
+		36A998742F0552EC007EAF74 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 36A998732F0552EC007EAF74 /* GoogleSignInSwift */; };
 		36B5321B2EFFCB380039E8C7 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 36B5321A2EFFCB380039E8C7 /* Supabase */; };
 /* End PBXBuildFile section */
 
@@ -14,9 +16,22 @@
 		36554A712EFB9F8D00C482C0 /* EarthLord day7.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "EarthLord day7.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		36554A752EFB9F8D00C482C0 /* Exceptions for "EarthLord day7" folder in "EarthLord day7" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 36554A702EFB9F8D00C482C0 /* EarthLord day7 */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		36554A732EFB9F8D00C482C0 /* EarthLord day7 */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				36554A752EFB9F8D00C482C0 /* Exceptions for "EarthLord day7" folder in "EarthLord day7" target */,
+			);
 			path = "EarthLord day7";
 			sourceTree = "<group>";
 		};
@@ -27,7 +42,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				36A998742F0552EC007EAF74 /* GoogleSignInSwift in Frameworks */,
 				36B5321B2EFFCB380039E8C7 /* Supabase in Frameworks */,
+				36A998722F0552EC007EAF74 /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +88,8 @@
 			name = "EarthLord day7";
 			packageProductDependencies = (
 				36B5321A2EFFCB380039E8C7 /* Supabase */,
+				36A998712F0552EC007EAF74 /* GoogleSignIn */,
+				36A998732F0552EC007EAF74 /* GoogleSignInSwift */,
 			);
 			productName = "EarthLord day7";
 			productReference = 36554A712EFB9F8D00C482C0 /* EarthLord day7.app */;
@@ -102,6 +121,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				36B532192EFFCB380039E8C7 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				36A998702F0552EC007EAF74 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 36554A722EFB9F8D00C482C0 /* Products */;
@@ -264,12 +284,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = SQ76Z63LHB;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "EarthLord day7/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -301,12 +317,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = SQ76Z63LHB;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "EarthLord day7/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -353,6 +365,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		36A998702F0552EC007EAF74 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.0.0;
+			};
+		};
 		36B532192EFFCB380039E8C7 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/supabase/supabase-swift";
@@ -364,6 +384,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		36A998712F0552EC007EAF74 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 36A998702F0552EC007EAF74 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		36A998732F0552EC007EAF74 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 36A998702F0552EC007EAF74 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
 		36B5321A2EFFCB380039E8C7 /* Supabase */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 36B532192EFFCB380039E8C7 /* XCRemoteSwiftPackageReference "supabase-swift" */;

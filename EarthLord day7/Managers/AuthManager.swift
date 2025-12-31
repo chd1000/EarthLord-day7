@@ -8,6 +8,7 @@
 import SwiftUI
 import Combine
 import Supabase
+import GoogleSignIn
 
 /// 认证管理器
 /// 负责用户注册、登录、找回密码、第三方登录等认证相关功能
@@ -411,11 +412,76 @@ class AuthManager: ObservableObject {
     }
 
     /// Google 登录
-    /// TODO: 实现 Google Sign In
+    /// 使用 GoogleSignIn SDK 获取 ID Token，然后通过 Supabase 验证
     func signInWithGoogle() async {
-        // TODO: 实现 Google 登录
-        errorMessage = "Google 登录功能即将推出"
-        print("⚠️ Google 登录尚未实现")
+        print("🔵 [Google登录] 开始 Google 登录流程...")
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            // 获取当前 window scene 用于展示 Google 登录界面
+            guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                  let rootViewController = windowScene.windows.first?.rootViewController else {
+                print("❌ [Google登录] 无法获取根视图控制器")
+                errorMessage = "无法启动 Google 登录"
+                isLoading = false
+                return
+            }
+
+            print("🔵 [Google登录] 正在调用 GoogleSignIn SDK...")
+
+            // 调用 Google Sign-In（这是一个同步方法，但会显示登录界面）
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+
+            print("✅ [Google登录] Google SDK 登录成功")
+            print("🔵 [Google登录] 用户邮箱: \(result.user.profile?.email ?? "未知")")
+
+            // 获取 ID Token
+            guard let idToken = result.user.idToken?.tokenString else {
+                print("❌ [Google登录] 无法获取 ID Token")
+                errorMessage = "Google 登录失败: 无法获取令牌"
+                isLoading = false
+                return
+            }
+
+            print("🔵 [Google登录] 成功获取 ID Token，正在向 Supabase 验证...")
+
+            // 使用 ID Token 向 Supabase 进行身份验证
+            let session = try await supabase.auth.signInWithIdToken(
+                credentials: .init(
+                    provider: .google,
+                    idToken: idToken
+                )
+            )
+
+            currentUser = session.user
+            isAuthenticated = true
+            needsPasswordSetup = false
+
+            print("✅ [Google登录] Supabase 验证成功!")
+            print("✅ [Google登录] 用户ID: \(session.user.id)")
+            print("✅ [Google登录] 用户邮箱: \(session.user.email ?? "未知")")
+
+        } catch let error as GIDSignInError {
+            // 处理 Google Sign-In 特定错误
+            switch error.code {
+            case .canceled:
+                print("ℹ️ [Google登录] 用户取消了登录")
+                // 用户取消不显示错误
+            case .hasNoAuthInKeychain:
+                print("❌ [Google登录] 钥匙串中没有认证信息")
+                errorMessage = "请重新登录 Google 账户"
+            default:
+                print("❌ [Google登录] Google SDK 错误: \(error.localizedDescription)")
+                errorMessage = "Google 登录失败: \(error.localizedDescription)"
+            }
+        } catch {
+            print("❌ [Google登录] 登录失败: \(error)")
+            print("❌ [Google登录] 错误详情: \(String(describing: error))")
+            errorMessage = "Google 登录失败: \(error.localizedDescription)"
+        }
+
+        isLoading = false
     }
 
     // MARK: - 其他方法
