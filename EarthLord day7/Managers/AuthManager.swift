@@ -135,6 +135,33 @@ class AuthManager: ObservableObject {
 
     // MARK: - 注册流程
 
+    /// 检查邮箱是否已注册
+    /// - Parameter email: 用户邮箱
+    /// - Returns: true表示邮箱已存在，false表示可以注册
+    private func checkEmailExists(email: String) async -> Bool {
+        do {
+            // 调用 Supabase RPC 函数检查邮箱是否存在
+            let response = try await supabase.rpc("check_email_exists", params: ["check_email": email]).execute()
+
+            // 解析布尔值返回结果
+            let decoder = JSONDecoder()
+            let exists = try decoder.decode(Bool.self, from: response.data)
+
+            print("✅ 邮箱检查结果 [\(email)]: \(exists ? "已存在" : "可注册")")
+            return exists
+
+        } catch {
+            // 如果 RPC 函数不存在或调用失败
+            print("❌ 检查邮箱失败: \(error.localizedDescription)")
+            print("💡 提示：请在 Supabase 后台执行 SQL 创建 check_email_exists 函数")
+            print("💡 如果函数已创建，请检查函数名称和参数是否正确")
+
+            // 检查失败时，为了安全起见，返回 false（允许继续）
+            // 如果你希望检查失败时阻止注册，可以改为 return true
+            return false
+        }
+    }
+
     /// 步骤1：发送注册验证码
     /// - Parameter email: 用户邮箱
     func sendRegisterOTP(email: String) async {
@@ -142,8 +169,21 @@ class AuthManager: ObservableObject {
         errorMessage = nil
         otpSent = false
 
+        // 第一步：检查邮箱是否已注册（不使用 try，因为该方法不会抛出错误）
+        let emailExists = await checkEmailExists(email: email)
+
+        if emailExists {
+            // 邮箱已存在，显示错误并返回（不发送邮件）
+            errorMessage = "该邮箱已注册，请直接登录"
+            isLoading = false
+            print("⚠️ 注册被阻止：邮箱已存在 - \(email)")
+            return
+        }
+
+        // 第二步：邮箱未注册，发送 OTP
         do {
-            // 发送 OTP（创建新用户）
+            print("📧 开始发送注册验证码到: \(email)")
+
             try await supabase.auth.signInWithOTP(
                 email: email,
                 shouldCreateUser: true
