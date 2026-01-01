@@ -9,9 +9,17 @@ import SwiftUI
 
 /// 通用占位视图
 struct PlaceholderView: View {
+    @EnvironmentObject var languageManager: LanguageManager
+
     let icon: String
-    let title: LocalizedStringKey
-    let subtitle: LocalizedStringKey
+    let titleKey: String
+    let subtitleKey: String
+
+    init(icon: String, title: String, subtitle: String) {
+        self.icon = icon
+        self.titleKey = title
+        self.subtitleKey = subtitle
+    }
 
     var body: some View {
         ZStack {
@@ -23,12 +31,12 @@ struct PlaceholderView: View {
                     .font(.system(size: 60))
                     .foregroundColor(ApocalypseTheme.primary)
 
-                Text(title)
+                Text(languageManager.localizedString(titleKey))
                     .font(.title2)
                     .fontWeight(.semibold)
                     .foregroundColor(ApocalypseTheme.textPrimary)
 
-                Text(subtitle)
+                Text(languageManager.localizedString(subtitleKey))
                     .font(.subheadline)
                     .foregroundColor(ApocalypseTheme.textSecondary)
             }
@@ -42,4 +50,5 @@ struct PlaceholderView: View {
         title: "地图",
         subtitle: "探索和圈占领地"
     )
+    .environmentObject(LanguageManager.shared)
 }

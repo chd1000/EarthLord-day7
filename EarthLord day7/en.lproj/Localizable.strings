@@ -1,0 +1,83 @@
+/* General */
+"EARTH LORD" = "EARTH LORD";
+"ID: %@" = "ID: %@";
+"确定" = "OK";
+"取消" = "Cancel";
+"完成" = "Done";
+"错误" = "Error";
+
+/* Tab Bar */
+"地图" = "Map";
+"领地" = "Territory";
+"个人" = "Profile";
+"更多" = "More";
+
+/* Map Page */
+"地球新主" = "Earth Lord";
+"探索和圈占领地" = "Explore and claim territory";
+
+/* Territory Page */
+"管理你的领地" = "Manage your territory";
+
+/* Authentication */
+"登录" = "Sign In";
+"注册" = "Register";
+"退出" = "Sign Out";
+"退出登录" = "Sign Out";
+"确定要退出登录吗？" = "Are you sure you want to sign out?";
+"忘记密码？" = "Forgot password?";
+"找回密码" = "Recover Password";
+"重置密码" = "Reset Password";
+"设置新密码" = "Set New Password";
+"完成注册" = "Complete Registration";
+"设置密码完成注册" = "Set password to complete registration";
+"密码不一致" = "Passwords do not match";
+"发送验证码" = "Send Code";
+"验证" = "Verify";
+"验证码已发送到 %@" = "Verification code sent to %@";
+"输入邮箱获取验证码" = "Enter email to receive verification code";
+"重新发送验证码" = "Resend Code";
+"重新发送 (%llds)" = "Resend (%llds)";
+
+/* Third-party Login */
+"或者使用以下方式登录" = "Or sign in with";
+"使用 Apple 登录" = "Sign in with Apple";
+"使用 Google 登录" = "Sign in with Google";
+
+/* Delete Account */
+"删除" = "Delete";
+"删除账户" = "Delete Account";
+"确认删除" = "Confirm Delete";
+"账户删除成功" = "Account Deleted Successfully";
+"此操作不可撤销！" = "This action cannot be undone!";
+"删除账户后，您的所有数据将被永久删除，包括：" = "After deleting your account, all your data will be permanently deleted, including:";
+"个人资料和设置" = "Profile and settings";
+"游戏进度和成就" = "Game progress and achievements";
+"领地和建筑数据" = "Territory and building data";
+"请输入「删除」以确认：" = "Please type \"Delete\" to confirm:";
+"您的账户已被永久删除，感谢您的使用。" = "Your account has been permanently deleted. Thank you for using our service.";
+
+/* Supabase Test */
+"Supabase 测试" = "Supabase Test";
+"Supabase 连接测试" = "Supabase Connection Test";
+"检测数据库连接状态" = "Check database connection status";
+"测试连接" = "Test Connection";
+"测试中..." = "Testing...";
+
+/* Language Settings */
+"语言" = "Language";
+"切换应用显示语言" = "Switch app display language";
+"选择语言" = "Select Language";
+"根据系统语言自动切换" = "Automatically switch based on system language";
+"语言切换提示" = "Language changes take effect immediately";
+
+/* Profile Page Menu */
+"设置" = "Settings";
+"通知" = "Notifications";
+"帮助" = "Help";
+"关于" = "About";
+
+/* Statistics */
+"探索" = "Explore";
+"建筑" = "Buildings";
+"成就" = "Achievements";

@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct MainTabView: View {
+    @EnvironmentObject var languageManager: LanguageManager
     @State private var selectedTab = 0
 
     var body: some View {
@@ -15,35 +16,38 @@ struct MainTabView: View {
             MapTabView()
                 .tabItem {
                     Image(systemName: "map.fill")
-                    Text("地图")
+                    Text(languageManager.localizedString("地图"))
                 }
                 .tag(0)
 
             TerritoryTabView()
                 .tabItem {
                     Image(systemName: "flag.fill")
-                    Text("领地")
+                    Text(languageManager.localizedString("领地"))
                 }
                 .tag(1)
 
             ProfileTabView()
                 .tabItem {
                     Image(systemName: "person.fill")
-                    Text("个人")
+                    Text(languageManager.localizedString("个人"))
                 }
                 .tag(2)
 
             MoreTabView()
                 .tabItem {
                     Image(systemName: "ellipsis")
-                    Text("更多")
+                    Text(languageManager.localizedString("更多"))
                 }
                 .tag(3)
         }
         .tint(ApocalypseTheme.primary)
+        // 当语言改变时强制刷新整个 TabView
+        .id(languageManager.currentLanguageCode)
     }
 }
 
 #Preview {
     MainTabView()
+        .environmentObject(LanguageManager.shared)
 }

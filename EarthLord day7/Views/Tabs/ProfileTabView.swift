@@ -10,6 +10,7 @@ import Supabase
 
 struct ProfileTabView: View {
     @EnvironmentObject private var authManager: AuthManager
+    @EnvironmentObject private var languageManager: LanguageManager
 
     /// 是否显示登出确认弹窗
     @State private var showSignOutAlert = false
@@ -22,6 +23,11 @@ struct ProfileTabView: View {
 
     /// 是否显示删除成功提示
     @State private var showDeleteSuccessAlert = false
+
+    /// 删除确认关键词（根据当前语言）
+    private var deleteConfirmKeyword: String {
+        languageManager.currentLanguageCode == "en" ? "Delete" : "删除"
+    }
 
     var body: some View {
         NavigationStack {
@@ -51,27 +57,27 @@ struct ProfileTabView: View {
                     .padding()
                 }
             }
-            .navigationTitle("个人")
+            .navigationTitle(languageManager.localizedString("个人"))
             .navigationBarTitleDisplayMode(.large)
             .toolbarColorScheme(.dark, for: .navigationBar)
         }
-        .alert("退出登录", isPresented: $showSignOutAlert) {
-            Button("取消", role: .cancel) {}
-            Button("退出", role: .destructive) {
+        .alert(languageManager.localizedString("退出登录"), isPresented: $showSignOutAlert) {
+            Button(languageManager.localizedString("取消"), role: .cancel) {}
+            Button(languageManager.localizedString("退出"), role: .destructive) {
                 Task {
                     await authManager.signOut()
                 }
             }
         } message: {
-            Text("确定要退出登录吗？")
+            Text(languageManager.localizedString("确定要退出登录吗？"))
         }
         .sheet(isPresented: $showDeleteAccountAlert) {
             deleteAccountConfirmSheet
         }
-        .alert("账户删除成功", isPresented: $showDeleteSuccessAlert) {
-            Button("确定", role: .cancel) {}
+        .alert(languageManager.localizedString("账户删除成功"), isPresented: $showDeleteSuccessAlert) {
+            Button(languageManager.localizedString("确定"), role: .cancel) {}
         } message: {
-            Text("您的账户已被永久删除，感谢您的使用。")
+            Text(languageManager.localizedString("您的账户已被永久删除，感谢您的使用。"))
         }
     }
 
@@ -112,7 +118,7 @@ struct ProfileTabView: View {
             }
 
             // 用户ID
-            Text("ID: \(authManager.currentUser?.id.uuidString.prefix(8) ?? "Unknown")")
+            Text(languageManager.localizedString("ID: %@", String(authManager.currentUser?.id.uuidString.prefix(8) ?? "Unknown")))
                 .font(.caption)
                 .foregroundColor(ApocalypseTheme.textMuted)
                 .padding(.horizontal, 12)
@@ -131,13 +137,13 @@ struct ProfileTabView: View {
     private var statisticsSection: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                statisticsItem(icon: "flag.fill", title: "领地", value: "0")
-                statisticsItem(icon: "map.fill", title: "探索", value: "0")
+                statisticsItem(icon: "flag.fill", title: languageManager.localizedString("领地"), value: "0")
+                statisticsItem(icon: "map.fill", title: languageManager.localizedString("探索"), value: "0")
             }
 
             HStack(spacing: 12) {
-                statisticsItem(icon: "cube.fill", title: "建筑", value: "0")
-                statisticsItem(icon: "star.fill", title: "成就", value: "0")
+                statisticsItem(icon: "cube.fill", title: languageManager.localizedString("建筑"), value: "0")
+                statisticsItem(icon: "star.fill", title: languageManager.localizedString("成就"), value: "0")
             }
         }
     }
@@ -167,7 +173,7 @@ struct ProfileTabView: View {
 
     private var menuSection: some View {
         VStack(spacing: 0) {
-            menuItem(icon: "gearshape.fill", iconColor: .gray, title: "设置") {
+            menuItem(icon: "gearshape.fill", iconColor: .gray, title: languageManager.localizedString("设置")) {
                 // TODO: 导航到设置页面
                 print("点击设置")
             }
@@ -176,7 +182,7 @@ struct ProfileTabView: View {
                 .background(ApocalypseTheme.textMuted.opacity(0.2))
                 .padding(.horizontal)
 
-            menuItem(icon: "bell.fill", iconColor: .orange, title: "通知") {
+            menuItem(icon: "bell.fill", iconColor: .orange, title: languageManager.localizedString("通知")) {
                 // TODO: 导航到通知页面
                 print("点击通知")
             }
@@ -185,7 +191,7 @@ struct ProfileTabView: View {
                 .background(ApocalypseTheme.textMuted.opacity(0.2))
                 .padding(.horizontal)
 
-            menuItem(icon: "questionmark.circle.fill", iconColor: .blue, title: "帮助") {
+            menuItem(icon: "questionmark.circle.fill", iconColor: .blue, title: languageManager.localizedString("帮助")) {
                 // TODO: 导航到帮助页面
                 print("点击帮助")
             }
@@ -194,7 +200,7 @@ struct ProfileTabView: View {
                 .background(ApocalypseTheme.textMuted.opacity(0.2))
                 .padding(.horizontal)
 
-            menuItem(icon: "info.circle.fill", iconColor: .green, title: "关于") {
+            menuItem(icon: "info.circle.fill", iconColor: .green, title: languageManager.localizedString("关于")) {
                 // TODO: 导航到关于页面
                 print("点击关于")
             }
@@ -237,7 +243,7 @@ struct ProfileTabView: View {
         } label: {
             HStack {
                 Image(systemName: "rectangle.portrait.and.arrow.right")
-                Text("退出登录")
+                Text(languageManager.localizedString("退出登录"))
             }
             .font(.headline)
             .foregroundColor(ApocalypseTheme.danger)
@@ -262,7 +268,7 @@ struct ProfileTabView: View {
         } label: {
             HStack {
                 Image(systemName: "trash.fill")
-                Text("删除账户")
+                Text(languageManager.localizedString("删除账户"))
             }
             .font(.headline)
             .foregroundColor(ApocalypseTheme.textMuted)
@@ -289,26 +295,26 @@ struct ProfileTabView: View {
                         .padding(.top, 20)
 
                     // 警告标题
-                    Text("删除账户")
+                    Text(languageManager.localizedString("删除账户"))
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundColor(ApocalypseTheme.textPrimary)
 
                     // 警告说明
                     VStack(spacing: 12) {
-                        Text("此操作不可撤销！")
+                        Text(languageManager.localizedString("此操作不可撤销！"))
                             .font(.headline)
                             .foregroundColor(ApocalypseTheme.danger)
 
-                        Text("删除账户后，您的所有数据将被永久删除，包括：")
+                        Text(languageManager.localizedString("删除账户后，您的所有数据将被永久删除，包括："))
                             .font(.subheadline)
                             .foregroundColor(ApocalypseTheme.textSecondary)
                             .multilineTextAlignment(.center)
 
                         VStack(alignment: .leading, spacing: 8) {
-                            deleteWarningItem("个人资料和设置")
-                            deleteWarningItem("游戏进度和成就")
-                            deleteWarningItem("领地和建筑数据")
+                            deleteWarningItem(languageManager.localizedString("个人资料和设置"))
+                            deleteWarningItem(languageManager.localizedString("游戏进度和成就"))
+                            deleteWarningItem(languageManager.localizedString("领地和建筑数据"))
                         }
                         .padding()
                         .background(ApocalypseTheme.cardBackground)
@@ -318,11 +324,11 @@ struct ProfileTabView: View {
 
                     // 确认输入框
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("请输入「删除」以确认：")
+                        Text(languageManager.localizedString("请输入「删除」以确认："))
                             .font(.subheadline)
                             .foregroundColor(ApocalypseTheme.textSecondary)
 
-                        TextField("删除", text: $deleteConfirmText)
+                        TextField(deleteConfirmKeyword, text: $deleteConfirmText)
                             .textFieldStyle(.plain)
                             .padding()
                             .background(ApocalypseTheme.cardBackground)
@@ -330,7 +336,7 @@ struct ProfileTabView: View {
                             .overlay(
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(
-                                        deleteConfirmText == "删除" ? ApocalypseTheme.danger : ApocalypseTheme.textMuted.opacity(0.3),
+                                        deleteConfirmText == deleteConfirmKeyword ? ApocalypseTheme.danger : ApocalypseTheme.textMuted.opacity(0.3),
                                         lineWidth: 1
                                     )
                             )
@@ -364,24 +370,24 @@ struct ProfileTabView: View {
                                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                 } else {
                                     Image(systemName: "trash.fill")
-                                    Text("确认删除")
+                                    Text(languageManager.localizedString("确认删除"))
                                 }
                             }
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding()
-                            .background(deleteConfirmText == "删除" ? ApocalypseTheme.danger : ApocalypseTheme.textMuted)
+                            .background(deleteConfirmText == deleteConfirmKeyword ? ApocalypseTheme.danger : ApocalypseTheme.textMuted)
                             .cornerRadius(12)
                         }
-                        .disabled(deleteConfirmText != "删除" || authManager.isLoading)
+                        .disabled(deleteConfirmText != deleteConfirmKeyword || authManager.isLoading)
 
                         // 取消按钮
                         Button {
                             print("🔵 [删除账户] 用户取消删除")
                             showDeleteAccountAlert = false
                         } label: {
-                            Text("取消")
+                            Text(languageManager.localizedString("取消"))
                                 .font(.headline)
                                 .foregroundColor(ApocalypseTheme.textSecondary)
                                 .frame(maxWidth: .infinity)
@@ -430,4 +436,5 @@ struct ProfileTabView: View {
 #Preview {
     ProfileTabView()
         .environmentObject(AuthManager())
+        .environmentObject(LanguageManager.shared)
 }
