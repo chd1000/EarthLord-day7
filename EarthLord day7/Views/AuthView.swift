@@ -10,6 +10,7 @@ import SwiftUI
 /// 认证页面（登录/注册）
 struct AuthView: View {
     @EnvironmentObject private var authManager: AuthManager
+    @EnvironmentObject private var languageManager: LanguageManager
 
     /// 当前选中的Tab（0=登录, 1=注册）
     @State private var selectedTab: Int = 0
@@ -85,8 +86,8 @@ struct AuthView: View {
         .sheet(isPresented: $showResetPassword) {
             resetPasswordSheet
         }
-        .alert("错误", isPresented: .constant(authManager.errorMessage != nil)) {
-            Button("确定") {
+        .alert(languageManager.localizedString("错误"), isPresented: .constant(authManager.errorMessage != nil)) {
+            Button(languageManager.localizedString("确定")) {
                 authManager.errorMessage = nil
             }
         } message: {
@@ -119,7 +120,7 @@ struct AuthView: View {
                 .shadow(color: ApocalypseTheme.primary.opacity(0.3), radius: 20)
 
             // 标题
-            Text("地球新主")
+            Text(languageManager.localizedString("地球新主"))
                 .font(.system(size: 28, weight: .bold))
                 .foregroundColor(ApocalypseTheme.textPrimary)
 
@@ -141,7 +142,7 @@ struct AuthView: View {
                     selectedTab = 0
                 }
             } label: {
-                Text("登录")
+                Text(languageManager.localizedString("登录"))
                     .font(.headline)
                     .foregroundColor(selectedTab == 0 ? ApocalypseTheme.textPrimary : ApocalypseTheme.textSecondary)
                     .frame(maxWidth: .infinity)
@@ -154,7 +155,7 @@ struct AuthView: View {
                     selectedTab = 1
                 }
             } label: {
-                Text("注册")
+                Text(languageManager.localizedString("注册"))
                     .font(.headline)
                     .foregroundColor(selectedTab == 1 ? ApocalypseTheme.textPrimary : ApocalypseTheme.textSecondary)
                     .frame(maxWidth: .infinity)
@@ -182,7 +183,7 @@ struct AuthView: View {
             // 邮箱输入
             CustomTextField(
                 icon: "envelope",
-                placeholder: "邮箱",
+                placeholder: languageManager.localizedString("邮箱"),
                 text: $loginEmail
             )
             .textInputAutocapitalization(.never)
@@ -191,7 +192,7 @@ struct AuthView: View {
             // 密码输入
             CustomSecureField(
                 icon: "lock",
-                placeholder: "密码",
+                placeholder: languageManager.localizedString("密码"),
                 text: $loginPassword
             )
 
@@ -201,7 +202,7 @@ struct AuthView: View {
                     await authManager.signIn(email: loginEmail, password: loginPassword)
                 }
             } label: {
-                Text("登录")
+                Text(languageManager.localizedString("登录"))
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -216,7 +217,7 @@ struct AuthView: View {
             Button {
                 showResetPassword = true
             } label: {
-                Text("忘记密码？")
+                Text(languageManager.localizedString("忘记密码？"))
                     .font(.subheadline)
                     .foregroundColor(ApocalypseTheme.primary)
             }
@@ -243,13 +244,13 @@ struct AuthView: View {
     // 注册第一步：发送验证码
     private var registerStep1: some View {
         VStack(spacing: 16) {
-            Text("输入邮箱获取验证码")
+            Text(languageManager.localizedString("输入邮箱获取验证码"))
                 .font(.subheadline)
                 .foregroundColor(ApocalypseTheme.textSecondary)
 
             CustomTextField(
                 icon: "envelope",
-                placeholder: "邮箱",
+                placeholder: languageManager.localizedString("邮箱"),
                 text: $registerEmail
             )
             .textInputAutocapitalization(.never)
@@ -263,7 +264,7 @@ struct AuthView: View {
                     }
                 }
             } label: {
-                Text("发送验证码")
+                Text(languageManager.localizedString("发送验证码"))
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -279,7 +280,7 @@ struct AuthView: View {
     // 注册第二步：验证码输入
     private var registerStep2: some View {
         VStack(spacing: 16) {
-            Text("验证码已发送到 \(registerEmail)")
+            Text(languageManager.localizedString("验证码已发送到 %@", registerEmail))
                 .font(.subheadline)
                 .foregroundColor(ApocalypseTheme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -291,7 +292,7 @@ struct AuthView: View {
                     await authManager.verifyRegisterOTP(email: registerEmail, code: registerCode)
                 }
             } label: {
-                Text("验证")
+                Text(languageManager.localizedString("验证"))
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -304,7 +305,7 @@ struct AuthView: View {
 
             // 重发倒计时
             if resendCountdown > 0 {
-                Text("重新发送 (\(resendCountdown)s)")
+                Text(languageManager.localizedString("重新发送 (%llds)", resendCountdown))
                     .font(.subheadline)
                     .foregroundColor(ApocalypseTheme.textMuted)
             } else {
@@ -314,7 +315,7 @@ struct AuthView: View {
                         startResendCountdown()
                     }
                 } label: {
-                    Text("重新发送验证码")
+                    Text(languageManager.localizedString("重新发送验证码"))
                         .font(.subheadline)
                         .foregroundColor(ApocalypseTheme.primary)
                 }
@@ -325,25 +326,25 @@ struct AuthView: View {
     // 注册第三步：设置密码
     private var registerStep3: some View {
         VStack(spacing: 16) {
-            Text("设置密码完成注册")
+            Text(languageManager.localizedString("设置密码完成注册"))
                 .font(.subheadline)
                 .foregroundColor(ApocalypseTheme.textSecondary)
 
             CustomSecureField(
                 icon: "lock",
-                placeholder: "密码（至少6位）",
+                placeholder: languageManager.localizedString("密码（至少6位）"),
                 text: $registerPassword
             )
 
             CustomSecureField(
                 icon: "lock.fill",
-                placeholder: "确认密码",
+                placeholder: languageManager.localizedString("确认密码"),
                 text: $registerConfirmPassword
             )
 
             // 密码匹配提示
             if !registerConfirmPassword.isEmpty && registerPassword != registerConfirmPassword {
-                Text("密码不一致")
+                Text(languageManager.localizedString("密码不一致"))
                     .font(.caption)
                     .foregroundColor(ApocalypseTheme.danger)
             }
@@ -353,7 +354,7 @@ struct AuthView: View {
                     await authManager.completeRegistration(password: registerPassword)
                 }
             } label: {
-                Text("完成注册")
+                Text(languageManager.localizedString("完成注册"))
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -390,11 +391,11 @@ struct AuthView: View {
                     .padding(24)
                 }
             }
-            .navigationTitle("找回密码")
+            .navigationTitle(languageManager.localizedString("找回密码"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
+                    Button(languageManager.localizedString("取消")) {
                         showResetPassword = false
                         resetResetPasswordForm()
                     }
@@ -406,13 +407,13 @@ struct AuthView: View {
     // 重置密码第一步
     private var resetPasswordStep1: some View {
         VStack(spacing: 16) {
-            Text("输入邮箱获取验证码")
+            Text(languageManager.localizedString("输入邮箱获取验证码"))
                 .font(.subheadline)
                 .foregroundColor(ApocalypseTheme.textSecondary)
 
             CustomTextField(
                 icon: "envelope",
-                placeholder: "邮箱",
+                placeholder: languageManager.localizedString("邮箱"),
                 text: $resetEmail
             )
             .textInputAutocapitalization(.never)
@@ -426,7 +427,7 @@ struct AuthView: View {
                     }
                 }
             } label: {
-                Text("发送验证码")
+                Text(languageManager.localizedString("发送验证码"))
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -442,7 +443,7 @@ struct AuthView: View {
     // 重置密码第二步
     private var resetPasswordStep2: some View {
         VStack(spacing: 16) {
-            Text("验证码已发送到 \(resetEmail)")
+            Text(languageManager.localizedString("验证码已发送到 %@", resetEmail))
                 .font(.subheadline)
                 .foregroundColor(ApocalypseTheme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -454,7 +455,7 @@ struct AuthView: View {
                     await authManager.verifyResetOTP(email: resetEmail, code: resetCode)
                 }
             } label: {
-                Text("验证")
+                Text(languageManager.localizedString("验证"))
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -467,7 +468,7 @@ struct AuthView: View {
 
             // 重发倒计时
             if resendCountdown > 0 {
-                Text("重新发送 (\(resendCountdown)s)")
+                Text(languageManager.localizedString("重新发送 (%llds)", resendCountdown))
                     .font(.subheadline)
                     .foregroundColor(ApocalypseTheme.textMuted)
             } else {
@@ -477,7 +478,7 @@ struct AuthView: View {
                         startResendCountdown()
                     }
                 } label: {
-                    Text("重新发送验证码")
+                    Text(languageManager.localizedString("重新发送验证码"))
                         .font(.subheadline)
                         .foregroundColor(ApocalypseTheme.primary)
                 }
@@ -488,25 +489,25 @@ struct AuthView: View {
     // 重置密码第三步
     private var resetPasswordStep3: some View {
         VStack(spacing: 16) {
-            Text("设置新密码")
+            Text(languageManager.localizedString("设置新密码"))
                 .font(.subheadline)
                 .foregroundColor(ApocalypseTheme.textSecondary)
 
             CustomSecureField(
                 icon: "lock",
-                placeholder: "新密码（至少6位）",
+                placeholder: languageManager.localizedString("新密码（至少6位）"),
                 text: $resetNewPassword
             )
 
             CustomSecureField(
                 icon: "lock.fill",
-                placeholder: "确认新密码",
+                placeholder: languageManager.localizedString("确认新密码"),
                 text: $resetConfirmPassword
             )
 
             // 密码匹配提示
             if !resetConfirmPassword.isEmpty && resetNewPassword != resetConfirmPassword {
-                Text("密码不一致")
+                Text(languageManager.localizedString("密码不一致"))
                     .font(.caption)
                     .foregroundColor(ApocalypseTheme.danger)
             }
@@ -520,7 +521,7 @@ struct AuthView: View {
                     }
                 }
             } label: {
-                Text("重置密码")
+                Text(languageManager.localizedString("重置密码"))
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -543,7 +544,7 @@ struct AuthView: View {
                     .fill(ApocalypseTheme.textMuted.opacity(0.3))
                     .frame(height: 1)
 
-                Text("或者使用以下方式登录")
+                Text(languageManager.localizedString("或者使用以下方式登录"))
                     .font(.system(size: 11))
                     .foregroundColor(ApocalypseTheme.textSecondary)
                     .lineLimit(1)
@@ -562,7 +563,7 @@ struct AuthView: View {
             } label: {
                 HStack {
                     Image(systemName: "apple.logo")
-                    Text("使用 Apple 登录")
+                    Text(languageManager.localizedString("使用 Apple 登录"))
                 }
                 .font(.headline)
                 .foregroundColor(.white)
@@ -580,7 +581,7 @@ struct AuthView: View {
             } label: {
                 HStack {
                     Image(systemName: "g.circle.fill")
-                    Text("使用 Google 登录")
+                    Text(languageManager.localizedString("使用 Google 登录"))
                 }
                 .font(.headline)
                 .foregroundColor(.black)
@@ -665,4 +666,5 @@ struct CustomSecureField: View {
 #Preview {
     AuthView()
         .environmentObject(AuthManager())
+        .environmentObject(LanguageManager.shared)
 }
