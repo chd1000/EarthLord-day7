@@ -578,21 +578,27 @@ class AuthManager: ObservableObject {
 
         do {
             try await supabase.auth.signOut()
-
-            // 清空状态
-            currentUser = nil
-            isAuthenticated = false
-            needsPasswordSetup = false
-            otpSent = false
-            otpVerified = false
-            isInPasswordSetupFlow = false
-
             print("✅ 登出成功")
-
         } catch {
-            errorMessage = "登出失败: \(error.localizedDescription)"
-            print("❌ 登出失败: \(error)")
+            // sessionMissing 错误表示 session 已经不存在，视为登出成功
+            let errorDesc = error.localizedDescription.lowercased()
+            if errorDesc.contains("session") && errorDesc.contains("missing") {
+                print("⚠️ Session 已不存在，视为登出成功")
+            } else {
+                errorMessage = "登出失败: \(error.localizedDescription)"
+                print("❌ 登出失败: \(error)")
+                isLoading = false
+                return
+            }
         }
+
+        // 清空状态（无论 signOut 是否抛出 sessionMissing 错误）
+        currentUser = nil
+        isAuthenticated = false
+        needsPasswordSetup = false
+        otpSent = false
+        otpVerified = false
+        isInPasswordSetupFlow = false
 
         isLoading = false
     }
