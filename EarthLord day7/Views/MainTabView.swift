@@ -11,6 +11,28 @@ struct MainTabView: View {
     @EnvironmentObject var languageManager: LanguageManager
     @State private var selectedTab = 0
 
+    init() {
+        // 配置 TabBar 外观 - 统一使用不透明深色背景
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(ApocalypseTheme.cardBackground)
+
+        // 设置未选中状态的颜色
+        appearance.stackedLayoutAppearance.normal.iconColor = UIColor(ApocalypseTheme.textMuted)
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
+            .foregroundColor: UIColor(ApocalypseTheme.textMuted)
+        ]
+
+        // 设置选中状态的颜色
+        appearance.stackedLayoutAppearance.selected.iconColor = UIColor(ApocalypseTheme.primary)
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+            .foregroundColor: UIColor(ApocalypseTheme.primary)
+        ]
+
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
+
     var body: some View {
         TabView(selection: $selectedTab) {
             MapTabView()
