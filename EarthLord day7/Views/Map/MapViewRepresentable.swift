@@ -3,7 +3,7 @@
 //  EarthLord day7
 //
 //  MKMapView 的 SwiftUI 包装器
-//  负责显示地图、应用末世滤镜、处理用户位置更新
+//  负责显示地图、应用末世滤镜、处理用户位置更新、轨迹渲染
 //
 
 import SwiftUI
@@ -12,7 +12,7 @@ import MapKit
 /// MKMapView 的 SwiftUI 包装器
 struct MapViewRepresentable: UIViewRepresentable {
 
-    // MARK: - 绑定属性
+    // MARK: - 绑定属性（基础定位）
 
     /// 用户位置坐标（双向绑定）
     @Binding var userLocation: CLLocationCoordinate2D?
@@ -22,6 +22,22 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     /// 是否需要重新居中到用户位置
     @Binding var shouldRecenter: Bool
+
+    // MARK: - 绑定属性（路径追踪）
+
+    /// 追踪路径坐标数组（WGS-84 原始坐标）
+    @Binding var trackingPath: [CLLocationCoordinate2D]
+
+    /// 路径更新版本号（用于触发更新）
+    var pathUpdateVersion: Int
+
+    /// 是否正在追踪
+    var isTracking: Bool
+
+    // MARK: - 常量
+
+    /// 轨迹线的 overlay 标识符
+    private static let trackingOverlayIdentifier = "trackingPath"
 
     // MARK: - UIViewRepresentable
 
@@ -50,7 +66,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         // 显示指南针
         mapView.showsCompass = true
 
-        // 设置代理（关键！否则 didUpdate userLocation 不会被调用）
+        // 设置代理（关键！否则 didUpdate userLocation 和 rendererFor overlay 不会被调用）
         mapView.delegate = context.coordinator
 
         // 应用末世滤镜效果
@@ -77,11 +93,53 @@ struct MapViewRepresentable: UIViewRepresentable {
                 shouldRecenter = false
             }
         }
+
+        // 更新轨迹路径
+        updateTrackingPath(on: mapView, context: context)
     }
 
     /// 创建 Coordinator
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
+    }
+
+    // MARK: - 轨迹渲染
+
+    /// 更新轨迹路径显示
+    private func updateTrackingPath(on mapView: MKMapView, context: Context) {
+        // 检查版本号是否变化（避免不必要的更新）
+        guard context.coordinator.lastPathVersion != pathUpdateVersion else {
+            return
+        }
+        context.coordinator.lastPathVersion = pathUpdateVersion
+
+        // 移除旧的轨迹 overlay
+        let oldOverlays = mapView.overlays.filter { overlay in
+            if let polyline = overlay as? MKPolyline {
+                return polyline.title == Self.trackingOverlayIdentifier
+            }
+            return false
+        }
+        mapView.removeOverlays(oldOverlays)
+
+        // 如果路径点少于 2 个，不绘制
+        guard trackingPath.count >= 2 else {
+            print("🛤️ 路径点不足 2 个，跳过绘制")
+            return
+        }
+
+        // ⭐ 关键：将 WGS-84 坐标转换为 GCJ-02 坐标
+        // 这样轨迹才能显示在正确的位置（不会偏移 100-500 米）
+        let gcj02Coordinates = CoordinateConverter.wgs84ToGcj02(trackingPath)
+
+        // 创建 MKPolyline
+        let polyline = MKPolyline(coordinates: gcj02Coordinates, count: gcj02Coordinates.count)
+        polyline.title = Self.trackingOverlayIdentifier
+
+        // 添加到地图
+        mapView.addOverlay(polyline)
+
+        print("🛤️ 轨迹更新完成，共 \(trackingPath.count) 个点")
     }
 
     // MARK: - 末世滤镜
@@ -119,6 +177,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         /// 是否已完成首次居中（防止重复居中）
         private var hasInitialCentered = false
+
+        /// 上次更新的路径版本号（用于检测变化）
+        var lastPathVersion: Int = -1
 
         init(_ parent: MapViewRepresentable) {
             self.parent = parent
@@ -160,6 +221,30 @@ struct MapViewRepresentable: UIViewRepresentable {
             }
         }
 
+        /// ⭐⭐⭐ 关键方法：为 overlay 提供渲染器
+        /// 如果不实现这个方法，轨迹添加了也看不见！
+        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            // 处理轨迹线
+            if let polyline = overlay as? MKPolyline {
+                let renderer = MKPolylineRenderer(polyline: polyline)
+
+                // 轨迹样式：青色、4pt 宽度、圆头
+                renderer.strokeColor = UIColor.cyan
+                renderer.lineWidth = 4.0
+                renderer.lineCap = .round
+                renderer.lineJoin = .round
+
+                // 添加半透明效果，让轨迹更有科技感
+                renderer.alpha = 0.8
+
+                print("🎨 创建轨迹渲染器: 青色, 4pt")
+                return renderer
+            }
+
+            // 默认渲染器
+            return MKOverlayRenderer(overlay: overlay)
+        }
+
         /// 地图区域变化完成
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
             // 可以在这里处理用户手动拖动地图后的逻辑
@@ -182,4 +267,17 @@ struct MapViewRepresentable: UIViewRepresentable {
             print("❌ 地图定位失败: \(error.localizedDescription)")
         }
     }
+}
+
+// MARK: - Preview
+
+#Preview {
+    MapViewRepresentable(
+        userLocation: .constant(nil),
+        hasLocatedUser: .constant(false),
+        shouldRecenter: .constant(false),
+        trackingPath: .constant([]),
+        pathUpdateVersion: 0,
+        isTracking: false
+    )
 }

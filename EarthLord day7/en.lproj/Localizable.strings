@@ -95,3 +95,7 @@
 "请在系统设置中开启定位权限，以便在末日世界中显示您的位置" = "Please enable location permission in Settings to show your position in the apocalyptic world";
 "前往设置" = "Go to Settings";
 "正在获取位置..." = "Getting location...";
+
+/* Path Tracking */
+"开始圈地" = "Start Claiming";
+"停止圈地" = "Stop Claiming";

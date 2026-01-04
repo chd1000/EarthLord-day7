@@ -3,7 +3,7 @@
 //  EarthLord day7
 //
 //  地图页面
-//  显示苹果地图、用户位置、末世滤镜效果
+//  显示苹果地图、用户位置、末世滤镜效果、路径追踪
 //
 
 import SwiftUI
@@ -47,18 +47,22 @@ struct MapTabView: View {
             }
             .ignoresSafeArea(edges: .top)  // 只忽略顶部
 
-            // 控制按钮
+            // 控制按钮区域
             VStack {
                 Spacer()
 
-                HStack {
+                HStack(alignment: .bottom) {
+                    // 圈地按钮（左下角）
+                    trackingButton
+                        .padding(.leading, 16)
+
                     Spacer()
 
-                    // 定位按钮
+                    // 定位按钮（右下角）
                     locateButton
                         .padding(.trailing, 16)
-                        .padding(.bottom, 16)  // 调整底部间距，Tab 栏现在可见
                 }
+                .padding(.bottom, 16)
             }
 
             // 权限被拒绝时显示提示
@@ -82,9 +86,53 @@ struct MapTabView: View {
         MapViewRepresentable(
             userLocation: $userLocation,
             hasLocatedUser: $hasLocatedUser,
-            shouldRecenter: $shouldRecenter
+            shouldRecenter: $shouldRecenter,
+            trackingPath: $locationManager.pathCoordinates,
+            pathUpdateVersion: locationManager.pathUpdateVersion,
+            isTracking: locationManager.isTracking
         )
         .ignoresSafeArea(edges: .top)  // 只忽略顶部安全区域，保留底部 Tab 栏
+    }
+
+    // MARK: - 圈地按钮
+
+    private var trackingButton: some View {
+        Button {
+            toggleTracking()
+        } label: {
+            HStack(spacing: 8) {
+                // 图标
+                Image(systemName: locationManager.isTracking ? "stop.fill" : "flag.fill")
+                    .font(.system(size: 16, weight: .semibold))
+
+                // 文字
+                if locationManager.isTracking {
+                    Text(languageManager.localizedString("停止圈地"))
+                        .font(.system(size: 14, weight: .semibold))
+
+                    // 显示当前点数
+                    Text("(\(locationManager.pathPointCount))")
+                        .font(.system(size: 12, weight: .medium))
+                        .opacity(0.8)
+                } else {
+                    Text(languageManager.localizedString("开始圈地"))
+                        .font(.system(size: 14, weight: .semibold))
+                }
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                Capsule()
+                    .fill(locationManager.isTracking ? ApocalypseTheme.danger : ApocalypseTheme.primary)
+                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+            )
+        }
+        .disabled(!locationManager.isAuthorized)
+        .opacity(locationManager.isAuthorized ? 1.0 : 0.5)
+        // 追踪时添加脉冲动画
+        .scaleEffect(locationManager.isTracking ? 1.0 : 1.0)
+        .animation(.easeInOut(duration: 0.3), value: locationManager.isTracking)
     }
 
     // MARK: - 定位按钮
@@ -190,6 +238,19 @@ struct MapTabView: View {
         } else if locationManager.isAuthorized {
             // 已授权，开始定位
             locationManager.startUpdatingLocation()
+        }
+    }
+
+    /// 切换圈地追踪状态
+    private func toggleTracking() {
+        if locationManager.isTracking {
+            // 停止追踪
+            locationManager.stopPathTracking()
+            print("🛑 用户停止圈地")
+        } else {
+            // 开始追踪
+            locationManager.startPathTracking()
+            print("🚶 用户开始圈地")
         }
     }
 
