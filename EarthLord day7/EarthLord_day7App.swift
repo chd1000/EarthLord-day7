@@ -12,6 +12,7 @@ import GoogleSignIn
 struct EarthLord_day7App: App {
     @StateObject private var authManager = AuthManager()
     private var languageManager = LanguageManager.shared
+    private var locationManager = LocationManager.shared
 
     /// Google Client ID
     private let googleClientID = "15540158218-9g4hjhe8k5t7beust04bf11h4pad6thq.apps.googleusercontent.com"
@@ -28,6 +29,7 @@ struct EarthLord_day7App: App {
             RootView()
                 .environmentObject(authManager)
                 .environmentObject(languageManager)
+                .environmentObject(locationManager)
                 .onOpenURL { url in
                     // 处理 Google Sign-In 回调 URL
                     print("🔵 [App] 收到 URL 回调: \(url)")

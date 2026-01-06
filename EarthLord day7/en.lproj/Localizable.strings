@@ -99,3 +99,27 @@
 /* Path Tracking */
 "开始圈地" = "Start Claiming";
 "停止圈地" = "Stop Claiming";
+"圈地成功" = "Territory Claimed";
+"已返回起点，领地已标记" = "Returned to start, territory marked";
+
+/* Development Testing */
+"开发测试" = "Dev Testing";
+"查看调试信息和测试功能" = "View debug info and test features";
+"圈地功能测试" = "Territory Test";
+"查看圈地模块运行日志" = "View territory module logs";
+"进入圈地测试界面" = "Entered territory test view";
+"定位" = "Location";
+"已定位" = "Located";
+"未定位" = "Not Located";
+"追踪" = "Tracking";
+"进行中" = "Active";
+"未开始" = "Inactive";
+"路径点" = "Points";
+"闭合" = "Closed";
+"已闭合" = "Closed";
+"未闭合" = "Open";
+"速度超限" = "Speed Exceeded";
+"速度警告" = "Speed Warning";
+"清空日志" = "Clear Logs";
+"导出日志" = "Export Logs";
+"日志已清空" = "Logs cleared";

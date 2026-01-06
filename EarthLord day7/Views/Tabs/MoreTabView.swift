@@ -23,19 +23,19 @@ struct MoreTabView: View {
                     // 语言设置
                     languageSettingRow
 
-                    // Supabase 测试入口
-                    NavigationLink(destination: SupabaseTestView()) {
+                    // 开发测试入口
+                    NavigationLink(destination: TestMenuView()) {
                         HStack {
-                            Image(systemName: "server.rack")
+                            Image(systemName: "hammer.fill")
                                 .font(.title2)
                                 .foregroundColor(ApocalypseTheme.primary)
                                 .frame(width: 40)
 
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(languageManager.localizedString("Supabase 连接测试"))
+                                Text(languageManager.localizedString("开发测试"))
                                     .font(.headline)
                                     .foregroundColor(ApocalypseTheme.textPrimary)
-                                Text(languageManager.localizedString("检测数据库连接状态"))
+                                Text(languageManager.localizedString("查看调试信息和测试功能"))
                                     .font(.caption)
                                     .foregroundColor(ApocalypseTheme.textSecondary)
                             }

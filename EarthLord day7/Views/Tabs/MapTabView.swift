@@ -3,7 +3,7 @@
 //  EarthLord day7
 //
 //  地图页面
-//  显示苹果地图、用户位置、末世滤镜效果、路径追踪
+//  显示苹果地图、用户位置、末世滤镜效果、路径追踪、闭环检测、速度警告
 //
 
 import SwiftUI
@@ -47,6 +47,22 @@ struct MapTabView: View {
             }
             .ignoresSafeArea(edges: .top)  // 只忽略顶部
 
+            // 速度警告横幅（在顶部显示）
+            VStack {
+                if let warning = locationManager.speedWarning {
+                    speedWarningBanner(warning)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
+                Spacer()
+            }
+            .animation(.easeInOut(duration: 0.3), value: locationManager.speedWarning)
+
+            // 闭环成功提示
+            if locationManager.isPathClosed && locationManager.isTracking {
+                closureSuccessBanner
+            }
+
             // 控制按钮区域
             VStack {
                 Spacer()
@@ -89,9 +105,73 @@ struct MapTabView: View {
             shouldRecenter: $shouldRecenter,
             trackingPath: $locationManager.pathCoordinates,
             pathUpdateVersion: locationManager.pathUpdateVersion,
-            isTracking: locationManager.isTracking
+            isTracking: locationManager.isTracking,
+            isPathClosed: locationManager.isPathClosed
         )
         .ignoresSafeArea(edges: .top)  // 只忽略顶部安全区域，保留底部 Tab 栏
+    }
+
+    // MARK: - 速度警告横幅
+
+    private func speedWarningBanner(_ message: String) -> some View {
+        HStack(spacing: 8) {
+            // 警告图标
+            Image(systemName: locationManager.isTracking ? "exclamationmark.triangle.fill" : "xmark.circle.fill")
+                .font(.system(size: 18))
+
+            // 警告文字
+            Text(message)
+                .font(.system(size: 14, weight: .medium))
+
+            Spacer()
+        }
+        .foregroundColor(.white)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(locationManager.isTracking ? ApocalypseTheme.warning : ApocalypseTheme.danger)
+                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 60)  // 留出状态栏空间
+    }
+
+    // MARK: - 闭环成功提示
+
+    private var closureSuccessBanner: some View {
+        VStack {
+            Spacer()
+
+            HStack(spacing: 12) {
+                // 成功图标
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundColor(.white)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(languageManager.localizedString("圈地成功"))
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+
+                    Text(languageManager.localizedString("已返回起点，领地已标记"))
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+
+                Spacer()
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.green)
+                    .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+            )
+            .padding(.horizontal, 16)
+            .padding(.bottom, 100)  // 留出按钮空间
+        }
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: locationManager.isPathClosed)
     }
 
     // MARK: - 圈地按钮
@@ -102,7 +182,7 @@ struct MapTabView: View {
         } label: {
             HStack(spacing: 8) {
                 // 图标
-                Image(systemName: locationManager.isTracking ? "stop.fill" : "flag.fill")
+                Image(systemName: buttonIcon)
                     .font(.system(size: 16, weight: .semibold))
 
                 // 文字
@@ -124,15 +204,36 @@ struct MapTabView: View {
             .padding(.vertical, 12)
             .background(
                 Capsule()
-                    .fill(locationManager.isTracking ? ApocalypseTheme.danger : ApocalypseTheme.primary)
+                    .fill(buttonBackgroundColor)
                     .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
             )
         }
         .disabled(!locationManager.isAuthorized)
         .opacity(locationManager.isAuthorized ? 1.0 : 0.5)
-        // 追踪时添加脉冲动画
-        .scaleEffect(locationManager.isTracking ? 1.0 : 1.0)
         .animation(.easeInOut(duration: 0.3), value: locationManager.isTracking)
+        .animation(.easeInOut(duration: 0.3), value: locationManager.isPathClosed)
+    }
+
+    /// 按钮图标
+    private var buttonIcon: String {
+        if locationManager.isPathClosed {
+            return "checkmark.circle.fill"
+        } else if locationManager.isTracking {
+            return "stop.fill"
+        } else {
+            return "flag.fill"
+        }
+    }
+
+    /// 按钮背景颜色
+    private var buttonBackgroundColor: Color {
+        if locationManager.isPathClosed {
+            return Color.green
+        } else if locationManager.isTracking {
+            return ApocalypseTheme.danger
+        } else {
+            return ApocalypseTheme.primary
+        }
     }
 
     // MARK: - 定位按钮

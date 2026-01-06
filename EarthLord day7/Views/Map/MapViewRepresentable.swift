@@ -3,7 +3,7 @@
 //  EarthLord day7
 //
 //  MKMapView 的 SwiftUI 包装器
-//  负责显示地图、应用末世滤镜、处理用户位置更新、轨迹渲染
+//  负责显示地图、应用末世滤镜、处理用户位置更新、轨迹渲染、闭环多边形填充
 //
 
 import SwiftUI
@@ -34,10 +34,16 @@ struct MapViewRepresentable: UIViewRepresentable {
     /// 是否正在追踪
     var isTracking: Bool
 
+    /// 路径是否已闭合
+    var isPathClosed: Bool
+
     // MARK: - 常量
 
     /// 轨迹线的 overlay 标识符
     private static let trackingOverlayIdentifier = "trackingPath"
+
+    /// 闭环多边形的 overlay 标识符
+    private static let polygonOverlayIdentifier = "closedPolygon"
 
     // MARK: - UIViewRepresentable
 
@@ -113,10 +119,16 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
         context.coordinator.lastPathVersion = pathUpdateVersion
 
-        // 移除旧的轨迹 overlay
+        // 更新闭环状态（用于渲染器判断颜色）
+        context.coordinator.isPathClosed = isPathClosed
+
+        // 移除旧的轨迹 overlay 和多边形
         let oldOverlays = mapView.overlays.filter { overlay in
             if let polyline = overlay as? MKPolyline {
                 return polyline.title == Self.trackingOverlayIdentifier
+            }
+            if let polygon = overlay as? MKPolygon {
+                return polygon.title == Self.polygonOverlayIdentifier
             }
             return false
         }
@@ -132,14 +144,22 @@ struct MapViewRepresentable: UIViewRepresentable {
         // 这样轨迹才能显示在正确的位置（不会偏移 100-500 米）
         let gcj02Coordinates = CoordinateConverter.wgs84ToGcj02(trackingPath)
 
-        // 创建 MKPolyline
+        // 如果已闭环且点数 >= 3，先添加多边形填充（在轨迹线下方）
+        if isPathClosed && gcj02Coordinates.count >= 3 {
+            let polygon = MKPolygon(coordinates: gcj02Coordinates, count: gcj02Coordinates.count)
+            polygon.title = Self.polygonOverlayIdentifier
+            mapView.addOverlay(polygon)
+            print("🟢 添加闭环多边形填充，共 \(gcj02Coordinates.count) 个点")
+        }
+
+        // 创建 MKPolyline（轨迹线）
         let polyline = MKPolyline(coordinates: gcj02Coordinates, count: gcj02Coordinates.count)
         polyline.title = Self.trackingOverlayIdentifier
 
-        // 添加到地图
+        // 添加到地图（在多边形上方）
         mapView.addOverlay(polyline)
 
-        print("🛤️ 轨迹更新完成，共 \(trackingPath.count) 个点")
+        print("🛤️ 轨迹更新完成，共 \(trackingPath.count) 个点，闭环: \(isPathClosed)")
     }
 
     // MARK: - 末世滤镜
@@ -180,6 +200,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         /// 上次更新的路径版本号（用于检测变化）
         var lastPathVersion: Int = -1
+
+        /// 路径是否已闭合（用于渲染器判断颜色）
+        var isPathClosed: Bool = false
 
         init(_ parent: MapViewRepresentable) {
             self.parent = parent
@@ -224,12 +247,34 @@ struct MapViewRepresentable: UIViewRepresentable {
         /// ⭐⭐⭐ 关键方法：为 overlay 提供渲染器
         /// 如果不实现这个方法，轨迹添加了也看不见！
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            // 处理闭环多边形填充
+            if let polygon = overlay as? MKPolygon {
+                let renderer = MKPolygonRenderer(polygon: polygon)
+
+                // 多边形样式：半透明绿色填充，绿色边框
+                renderer.fillColor = UIColor.systemGreen.withAlphaComponent(0.25)
+                renderer.strokeColor = UIColor.systemGreen
+                renderer.lineWidth = 2.0
+
+                print("🎨 创建多边形渲染器: 半透明绿色填充")
+                return renderer
+            }
+
             // 处理轨迹线
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
 
-                // 轨迹样式：青色、4pt 宽度、圆头
-                renderer.strokeColor = UIColor.cyan
+                // 根据闭环状态选择颜色
+                if isPathClosed {
+                    // 已闭环：绿色轨迹
+                    renderer.strokeColor = UIColor.systemGreen
+                    print("🎨 创建轨迹渲染器: 绿色 (已闭环), 4pt")
+                } else {
+                    // 未闭环：青色轨迹
+                    renderer.strokeColor = UIColor.systemCyan
+                    print("🎨 创建轨迹渲染器: 青色 (未闭环), 4pt")
+                }
+
                 renderer.lineWidth = 4.0
                 renderer.lineCap = .round
                 renderer.lineJoin = .round
@@ -237,7 +282,6 @@ struct MapViewRepresentable: UIViewRepresentable {
                 // 添加半透明效果，让轨迹更有科技感
                 renderer.alpha = 0.8
 
-                print("🎨 创建轨迹渲染器: 青色, 4pt")
                 return renderer
             }
 
@@ -278,6 +322,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         shouldRecenter: .constant(false),
         trackingPath: .constant([]),
         pathUpdateVersion: 0,
-        isTracking: false
+        isTracking: false,
+        isPathClosed: false
     )
 }
