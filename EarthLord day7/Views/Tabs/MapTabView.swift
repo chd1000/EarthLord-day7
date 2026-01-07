@@ -26,6 +26,9 @@ struct MapTabView: View {
     /// 是否需要重新居中
     @State private var shouldRecenter: Bool = false
 
+    /// 是否显示验证结果横幅
+    @State private var showValidationBanner: Bool = false
+
     var body: some View {
         ZStack {
             // 地图视图
@@ -58,9 +61,10 @@ struct MapTabView: View {
             }
             .animation(.easeInOut(duration: 0.3), value: locationManager.speedWarning)
 
-            // 闭环成功提示
-            if locationManager.isPathClosed && locationManager.isTracking {
-                closureSuccessBanner
+            // 验证结果横幅（闭环后根据验证结果显示成功/失败）
+            if showValidationBanner {
+                validationResultBanner
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
             // 控制按钮区域
@@ -93,6 +97,23 @@ struct MapTabView: View {
         }
         .onAppear {
             handleOnAppear()
+        }
+        // 监听闭环状态，闭环后根据验证结果显示横幅
+        .onReceive(locationManager.$isPathClosed) { isClosed in
+            if isClosed {
+                // 闭环后延迟一点点，等待验证结果
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
+                        showValidationBanner = true
+                    }
+                    // 3 秒后自动隐藏
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            showValidationBanner = false
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -137,26 +158,42 @@ struct MapTabView: View {
         .padding(.top, 60)  // 留出状态栏空间
     }
 
-    // MARK: - 闭环成功提示
+    // MARK: - 验证结果横幅
 
-    private var closureSuccessBanner: some View {
+    /// 验证结果横幅（根据验证结果显示成功或失败）
+    private var validationResultBanner: some View {
         VStack {
             Spacer()
 
             HStack(spacing: 12) {
-                // 成功图标
-                Image(systemName: "checkmark.circle.fill")
+                // 图标（根据验证结果显示不同图标）
+                Image(systemName: locationManager.territoryValidationPassed
+                      ? "checkmark.circle.fill"
+                      : "xmark.circle.fill")
                     .font(.system(size: 24))
                     .foregroundColor(.white)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(languageManager.localizedString("圈地成功"))
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
+                // 文字内容
+                if locationManager.territoryValidationPassed {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(languageManager.localizedString("圈地成功"))
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
 
-                    Text(languageManager.localizedString("已返回起点，领地已标记"))
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.8))
+                        Text("领地面积: \(String(format: "%.0f", locationManager.calculatedArea))m²")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(languageManager.localizedString("圈地失败"))
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white)
+
+                        Text(locationManager.territoryValidationError ?? "验证失败")
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.8))
+                    }
                 }
 
                 Spacer()
@@ -164,14 +201,12 @@ struct MapTabView: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.green)
+                    .fill(locationManager.territoryValidationPassed ? Color.green : Color.red)
                     .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
             )
             .padding(.horizontal, 16)
             .padding(.bottom, 100)  // 留出按钮空间
         }
-        .transition(.move(edge: .bottom).combined(with: .opacity))
-        .animation(.spring(response: 0.5, dampingFraction: 0.8), value: locationManager.isPathClosed)
     }
 
     // MARK: - 圈地按钮
