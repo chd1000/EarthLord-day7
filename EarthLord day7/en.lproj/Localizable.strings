@@ -102,6 +102,9 @@
 "圈地成功" = "Territory Claimed";
 "圈地失败" = "Claiming Failed";
 "已返回起点，领地已标记" = "Returned to start, territory marked";
+"确认登记领地" = "Confirm Registration";
+"正在登记..." = "Registering...";
+"登记成功" = "Registration Successful";
 
 /* Development Testing */
 "开发测试" = "Dev Testing";

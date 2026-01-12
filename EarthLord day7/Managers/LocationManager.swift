@@ -246,7 +246,8 @@ class LocationManager: NSObject, ObservableObject {
     }
 
     /// 停止路径追踪
-    func stopPathTracking() {
+    /// - Parameter clearData: 是否清除路径数据（默认 false，保留轨迹显示）
+    func stopPathTracking(clearData: Bool = false) {
         print("🛑 停止路径追踪，共记录 \(pathCoordinates.count) 个点")
         TerritoryLogger.shared.log("停止路径追踪，共记录 \(pathCoordinates.count) 个点", type: .info)
 
@@ -257,7 +258,21 @@ class LocationManager: NSObject, ObservableObject {
         // 标记停止追踪
         isTracking = false
 
-        // 注意：不清除路径，保留轨迹显示
+        // 根据参数决定是否清除数据
+        if clearData {
+            // 上传成功后调用，清除所有数据
+            pathCoordinates.removeAll()
+            pathUpdateVersion += 1
+            isPathClosed = false
+            speedWarning = nil
+            isOverSpeed = false
+            territoryValidationPassed = false
+            territoryValidationError = nil
+            calculatedArea = 0
+            print("🗑️ 已清除路径数据和验证状态")
+            TerritoryLogger.shared.log("已清除路径数据和验证状态", type: .info)
+        }
+        // 如果 clearData == false，保留轨迹显示
     }
 
     /// 清除路径

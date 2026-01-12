@@ -16,6 +16,7 @@ struct MapTabView: View {
 
     // MARK: - 状态管理
     @StateObject private var locationManager = LocationManager.shared
+    @StateObject private var territoryManager = TerritoryManager.shared
 
     /// 用户位置坐标
     @State private var userLocation: CLLocationCoordinate2D?
@@ -28,6 +29,19 @@ struct MapTabView: View {
 
     /// 是否显示验证结果横幅
     @State private var showValidationBanner: Bool = false
+
+    /// 圈地开始时间
+    @State private var trackingStartTime: Date? = nil
+
+    /// 是否正在上传
+    @State private var isUploading: Bool = false
+
+    /// 上传成功提示
+    @State private var showUploadSuccess: Bool = false
+
+    /// 上传失败提示
+    @State private var showUploadError: Bool = false
+    @State private var uploadErrorMessage: String = ""
 
     var body: some View {
         ZStack {
@@ -70,6 +84,18 @@ struct MapTabView: View {
             // 控制按钮区域
             VStack {
                 Spacer()
+
+                // 确认登记按钮（验证通过时显示）
+                if locationManager.territoryValidationPassed && !isUploading {
+                    confirmButton
+                        .padding(.bottom, 12)
+                }
+
+                // 上传中指示器
+                if isUploading {
+                    uploadingIndicator
+                        .padding(.bottom, 12)
+                }
 
                 HStack(alignment: .bottom) {
                     // 圈地按钮（左下角）
@@ -114,6 +140,12 @@ struct MapTabView: View {
                     }
                 }
             }
+        }
+        // 上传失败提示
+        .alert("登记失败", isPresented: $showUploadError) {
+            Button("确定", role: .cancel) { }
+        } message: {
+            Text(uploadErrorMessage)
         }
     }
 
@@ -271,6 +303,55 @@ struct MapTabView: View {
         }
     }
 
+    // MARK: - 确认登记按钮
+
+    private var confirmButton: some View {
+        Button {
+            Task {
+                await uploadCurrentTerritory()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "square.and.arrow.up.fill")
+                    .font(.system(size: 16, weight: .semibold))
+
+                Text(languageManager.localizedString("确认登记领地"))
+                    .font(.system(size: 14, weight: .semibold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 14)
+            .background(
+                Capsule()
+                    .fill(Color.green)
+                    .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+            )
+        }
+        .transition(.scale.combined(with: .opacity))
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: locationManager.territoryValidationPassed)
+    }
+
+    // MARK: - 上传中指示器
+
+    private var uploadingIndicator: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                .scaleEffect(0.8)
+
+            Text(languageManager.localizedString("正在登记..."))
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.white)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 14)
+        .background(
+            Capsule()
+                .fill(ApocalypseTheme.primary.opacity(0.8))
+                .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 3)
+        )
+    }
+
     // MARK: - 定位按钮
 
     private var locateButton: some View {
@@ -380,13 +461,61 @@ struct MapTabView: View {
     /// 切换圈地追踪状态
     private func toggleTracking() {
         if locationManager.isTracking {
-            // 停止追踪
+            // 停止追踪（保留轨迹显示，不清除数据）
             locationManager.stopPathTracking()
             print("🛑 用户停止圈地")
         } else {
+            // 记录开始时间
+            trackingStartTime = Date()
             // 开始追踪
             locationManager.startPathTracking()
             print("🚶 用户开始圈地")
+        }
+    }
+
+    /// 上传当前领地
+    private func uploadCurrentTerritory() async {
+        // 再次检查验证状态
+        guard locationManager.territoryValidationPassed else {
+            print("❌ 领地验证未通过，无法上传")
+            TerritoryLogger.shared.log("上传被阻止：领地验证未通过", type: .error)
+            return
+        }
+
+        // 防止重复点击
+        guard !isUploading else { return }
+
+        isUploading = true
+        print("📤 开始上传领地...")
+
+        let success = await territoryManager.uploadTerritory(
+            pathCoordinates: locationManager.pathCoordinates,
+            area: locationManager.calculatedArea,
+            startTime: trackingStartTime,
+            endTime: Date()
+        )
+
+        isUploading = false
+
+        if success {
+            print("✅ 领地上传成功！")
+
+            // 显示成功提示
+            showUploadSuccess = true
+
+            // 上传成功后停止追踪并清除数据
+            locationManager.stopPathTracking(clearData: true)
+            trackingStartTime = nil
+
+            // 3秒后隐藏成功提示
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                showUploadSuccess = false
+            }
+        } else {
+            print("❌ 领地上传失败: \(territoryManager.errorMessage ?? "未知错误")")
+            // 显示错误提示
+            uploadErrorMessage = territoryManager.errorMessage ?? "未知错误"
+            showUploadError = true
         }
     }
 
