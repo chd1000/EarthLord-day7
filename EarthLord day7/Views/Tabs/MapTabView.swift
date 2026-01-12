@@ -8,15 +8,20 @@
 
 import SwiftUI
 import MapKit
+import Supabase
 
 struct MapTabView: View {
 
     // MARK: - 环境对象
     @EnvironmentObject private var languageManager: LanguageManager
+    @EnvironmentObject private var authManager: AuthManager
 
     // MARK: - 状态管理
     @StateObject private var locationManager = LocationManager.shared
     @StateObject private var territoryManager = TerritoryManager.shared
+
+    /// 已加载的领地列表
+    @State private var territories: [Territory] = []
 
     /// 用户位置坐标
     @State private var userLocation: CLLocationCoordinate2D?
@@ -159,7 +164,9 @@ struct MapTabView: View {
             trackingPath: $locationManager.pathCoordinates,
             pathUpdateVersion: locationManager.pathUpdateVersion,
             isTracking: locationManager.isTracking,
-            isPathClosed: locationManager.isPathClosed
+            isPathClosed: locationManager.isPathClosed,
+            territories: territories,
+            currentUserId: authManager.currentUser?.id.uuidString
         )
         .ignoresSafeArea(edges: .top)  // 只忽略顶部安全区域，保留底部 Tab 栏
     }
@@ -456,6 +463,18 @@ struct MapTabView: View {
             // 已授权，开始定位
             locationManager.startUpdatingLocation()
         }
+
+        // 加载领地数据
+        Task {
+            await loadTerritories()
+        }
+    }
+
+    /// 加载领地数据
+    private func loadTerritories() async {
+        await territoryManager.loadAllTerritories()
+        territories = territoryManager.territories
+        TerritoryLogger.shared.log("加载了 \(territories.count) 个领地", type: .info)
     }
 
     /// 切换圈地追踪状态
@@ -507,6 +526,9 @@ struct MapTabView: View {
             locationManager.stopPathTracking(clearData: true)
             trackingStartTime = nil
 
+            // 刷新领地列表（在地图上显示新领地）
+            await loadTerritories()
+
             // 3秒后隐藏成功提示
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 showUploadSuccess = false
@@ -544,4 +566,5 @@ struct MapTabView: View {
 #Preview {
     MapTabView()
         .environmentObject(LanguageManager.shared)
+        .environmentObject(AuthManager())
 }
