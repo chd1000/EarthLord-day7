@@ -49,19 +49,26 @@ struct MainTabView: View {
                 }
                 .tag(1)
 
+            ResourcesTabView()
+                .tabItem {
+                    Image(systemName: "cube.box.fill")
+                    Text(languageManager.localizedString("资源"))
+                }
+                .tag(2)
+
             ProfileTabView()
                 .tabItem {
                     Image(systemName: "person.fill")
                     Text(languageManager.localizedString("个人"))
                 }
-                .tag(2)
+                .tag(3)
 
             MoreTabView()
                 .tabItem {
                     Image(systemName: "ellipsis")
                     Text(languageManager.localizedString("更多"))
                 }
-                .tag(3)
+                .tag(4)
         }
         .tint(ApocalypseTheme.primary)
         // 当语言改变时强制刷新整个 TabView

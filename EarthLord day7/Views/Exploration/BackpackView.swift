@@ -1,0 +1,570 @@
+//
+//  BackpackView.swift
+//  EarthLord day7
+//
+//  背包管理页面
+//  显示背包容量、物品列表、搜索筛选功能
+//
+
+import SwiftUI
+
+struct BackpackView: View {
+
+    // MARK: - 状态
+
+    /// 背包物品列表
+    @State private var inventoryItems: [InventoryItem] = MockExplorationData.mockInventoryItems
+
+    /// 搜索文字
+    @State private var searchText: String = ""
+
+    /// 当前选中的分类（nil 表示全部）
+    @State private var selectedCategory: ItemCategory? = nil
+
+    /// 动画显示的容量值
+    @State private var animatedCapacity: Double = 0
+
+    /// 物品列表显示状态（用于切换动画）
+    @State private var showItems: Bool = true
+
+    /// 背包容量上限
+    private let maxCapacity: Double = 100.0
+
+    // MARK: - 计算属性
+
+    /// 当前背包使用量（基于重量）
+    private var currentCapacity: Double {
+        MockExplorationData.calculateTotalWeight(items: inventoryItems)
+    }
+
+    /// 容量使用百分比
+    private var capacityPercentage: Double {
+        currentCapacity / maxCapacity
+    }
+
+    /// 进度条颜色
+    private var capacityColor: Color {
+        if capacityPercentage > 0.9 {
+            return ApocalypseTheme.danger
+        } else if capacityPercentage > 0.7 {
+            return ApocalypseTheme.warning
+        } else {
+            return ApocalypseTheme.success
+        }
+    }
+
+    /// 筛选后的物品列表
+    private var filteredItems: [InventoryItem] {
+        var result = inventoryItems
+
+        // 按分类筛选
+        if let category = selectedCategory {
+            result = result.filter { item in
+                if let definition = MockExplorationData.getItemDefinition(for: item.itemId) {
+                    return definition.category == category
+                }
+                return false
+            }
+        }
+
+        // 按搜索文字筛选
+        if !searchText.isEmpty {
+            result = result.filter { item in
+                if let definition = MockExplorationData.getItemDefinition(for: item.itemId) {
+                    return definition.name.localizedCaseInsensitiveContains(searchText)
+                }
+                return false
+            }
+        }
+
+        return result
+    }
+
+    // MARK: - 视图
+
+    var body: some View {
+        ZStack {
+            // 背景
+            ApocalypseTheme.background
+                .ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // 容量状态卡
+                capacityCard
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+
+                // 搜索框
+                searchBar
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+
+                // 分类筛选
+                categoryFilter
+                    .padding(.top, 12)
+
+                // 物品列表
+                itemListView
+                    .padding(.top, 12)
+            }
+        }
+        .navigationTitle("背包")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            // 容量进度条动画
+            withAnimation(.easeOut(duration: 0.8)) {
+                animatedCapacity = currentCapacity
+            }
+        }
+        .onChange(of: selectedCategory) { _, _ in
+            // 切换分类时的过渡动画
+            withAnimation(.easeOut(duration: 0.15)) {
+                showItems = false
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                withAnimation(.easeIn(duration: 0.2)) {
+                    showItems = true
+                }
+            }
+        }
+    }
+
+    // MARK: - 容量状态卡
+
+    /// 背包容量状态卡
+    private var capacityCard: some View {
+        VStack(spacing: 12) {
+            // 标题行
+            HStack {
+                Image(systemName: "bag.fill")
+                    .foregroundColor(ApocalypseTheme.primary)
+
+                Text("背包容量")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(ApocalypseTheme.textPrimary)
+
+                Spacer()
+
+                // 容量数值（带动画）
+                Text("\(String(format: "%.1f", animatedCapacity)) / \(Int(maxCapacity)) kg")
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundColor(capacityColor)
+                    .contentTransition(.numericText())
+            }
+
+            // 进度条（带动画）
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // 背景条
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(ApocalypseTheme.textMuted.opacity(0.3))
+                        .frame(height: 8)
+
+                    // 进度条
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(capacityColor)
+                        .frame(width: geometry.size.width * min(animatedCapacity / maxCapacity, 1.0), height: 8)
+                        .animation(.easeOut(duration: 0.8), value: animatedCapacity)
+                }
+            }
+            .frame(height: 8)
+
+            // 警告文字（超过90%时显示）
+            if capacityPercentage > 0.9 {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12))
+
+                    Text("背包快满了！")
+                        .font(.system(size: 13, weight: .medium))
+                }
+                .foregroundColor(ApocalypseTheme.danger)
+                .transition(.opacity)
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(ApocalypseTheme.cardBackground)
+        )
+        .animation(.easeInOut(duration: 0.3), value: capacityPercentage > 0.9)
+    }
+
+    // MARK: - 搜索框
+
+    /// 搜索框
+    private var searchBar: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(ApocalypseTheme.textMuted)
+                .font(.system(size: 16))
+
+            TextField("搜索物品...", text: $searchText)
+                .font(.system(size: 15))
+                .foregroundColor(ApocalypseTheme.textPrimary)
+
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(ApocalypseTheme.textMuted)
+                        .font(.system(size: 16))
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(ApocalypseTheme.cardBackground)
+        )
+    }
+
+    // MARK: - 分类筛选
+
+    /// 分类筛选按钮
+    private var categoryFilter: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                // 全部
+                CategoryChip(
+                    title: "全部",
+                    icon: "square.grid.2x2.fill",
+                    color: ApocalypseTheme.primary,
+                    isSelected: selectedCategory == nil
+                ) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedCategory = nil
+                    }
+                }
+
+                // 食物
+                CategoryChip(
+                    title: "食物",
+                    icon: "fork.knife",
+                    color: .orange,
+                    isSelected: selectedCategory == .food
+                ) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedCategory = .food
+                    }
+                }
+
+                // 水
+                CategoryChip(
+                    title: "水",
+                    icon: "drop.fill",
+                    color: .cyan,
+                    isSelected: selectedCategory == .water
+                ) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedCategory = .water
+                    }
+                }
+
+                // 材料
+                CategoryChip(
+                    title: "材料",
+                    icon: "cube.fill",
+                    color: .brown,
+                    isSelected: selectedCategory == .material
+                ) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedCategory = .material
+                    }
+                }
+
+                // 工具
+                CategoryChip(
+                    title: "工具",
+                    icon: "wrench.and.screwdriver.fill",
+                    color: .gray,
+                    isSelected: selectedCategory == .tool
+                ) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedCategory = .tool
+                    }
+                }
+
+                // 医疗
+                CategoryChip(
+                    title: "医疗",
+                    icon: "cross.case.fill",
+                    color: .red,
+                    isSelected: selectedCategory == .medical
+                ) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedCategory = .medical
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    // MARK: - 物品列表
+
+    /// 物品列表视图
+    private var itemListView: some View {
+        ScrollView {
+            if filteredItems.isEmpty {
+                // 空状态
+                emptyStateView
+            } else {
+                LazyVStack(spacing: 10) {
+                    ForEach(filteredItems) { item in
+                        if let definition = MockExplorationData.getItemDefinition(for: item.itemId) {
+                            ItemCard(item: item, definition: definition)
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 20)
+                .opacity(showItems ? 1 : 0)
+                .offset(y: showItems ? 0 : 10)
+            }
+        }
+    }
+
+    /// 空状态视图
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            if inventoryItems.isEmpty {
+                // 背包完全为空
+                Image(systemName: "bag")
+                    .font(.system(size: 60))
+                    .foregroundColor(ApocalypseTheme.textMuted)
+
+                Text("背包空空如也")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+
+                Text("去探索收集物资吧")
+                    .font(.system(size: 14))
+                    .foregroundColor(ApocalypseTheme.textMuted)
+            } else {
+                // 搜索或筛选后没有结果
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 60))
+                    .foregroundColor(ApocalypseTheme.textMuted)
+
+                Text("没有找到相关物品")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+
+                Text("试试其他搜索词或分类")
+                    .font(.system(size: 14))
+                    .foregroundColor(ApocalypseTheme.textMuted)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.horizontal, 40)
+    }
+}
+
+// MARK: - 分类按钮组件
+
+/// 分类筛选按钮
+struct CategoryChip: View {
+    let title: String
+    let icon: String
+    let color: Color
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12))
+
+                Text(title)
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .foregroundColor(isSelected ? .white : ApocalypseTheme.textSecondary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(isSelected ? color : ApocalypseTheme.cardBackground)
+            )
+            .overlay(
+                Capsule()
+                    .stroke(isSelected ? Color.clear : ApocalypseTheme.textMuted.opacity(0.3), lineWidth: 1)
+            )
+        }
+    }
+}
+
+// MARK: - 物品卡片组件
+
+/// 物品卡片
+struct ItemCard: View {
+    let item: InventoryItem
+    let definition: ItemDefinition
+
+    /// 分类颜色
+    private var categoryColor: Color {
+        switch definition.category {
+        case .water: return .cyan
+        case .food: return .orange
+        case .medical: return .red
+        case .material: return .brown
+        case .tool: return .gray
+        case .weapon: return .purple
+        case .clothing: return .blue
+        case .misc: return .secondary
+        }
+    }
+
+    /// 稀有度颜色
+    private var rarityColor: Color {
+        switch definition.rarity {
+        case .common: return .gray
+        case .uncommon: return .green
+        case .rare: return .blue
+        case .epic: return .purple
+        case .legendary: return .orange
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // 左边：圆形图标
+            ZStack {
+                Circle()
+                    .fill(categoryColor.opacity(0.15))
+                    .frame(width: 48, height: 48)
+
+                Image(systemName: definition.categoryIconName)
+                    .font(.system(size: 20))
+                    .foregroundColor(categoryColor)
+            }
+
+            // 中间：物品信息
+            VStack(alignment: .leading, spacing: 6) {
+                // 第一行：名称 + 数量
+                HStack(spacing: 6) {
+                    Text(definition.name)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+
+                    Text("x\(item.quantity)")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(ApocalypseTheme.primary)
+                }
+
+                // 第二行：重量 + 品质 + 稀有度
+                HStack(spacing: 8) {
+                    // 重量
+                    HStack(spacing: 3) {
+                        Image(systemName: "scalemass")
+                            .font(.system(size: 10))
+                        Text(String(format: "%.1fkg", definition.weight * Double(item.quantity)))
+                            .font(.system(size: 11))
+                    }
+                    .foregroundColor(ApocalypseTheme.textMuted)
+
+                    // 品质（如有）
+                    if let quality = item.quality {
+                        Text(quality.displayName)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(qualityColor(quality))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(qualityColor(quality).opacity(0.15))
+                            )
+                    }
+
+                    // 稀有度标签
+                    Text(definition.rarity.displayName)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(rarityColor)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(
+                            Capsule()
+                                .fill(rarityColor.opacity(0.15))
+                        )
+                }
+            }
+
+            Spacer()
+
+            // 右边：操作按钮
+            VStack(spacing: 8) {
+                // 使用按钮
+                Button {
+                    handleUse()
+                } label: {
+                    Text("使用")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .fill(ApocalypseTheme.primary)
+                        )
+                }
+
+                // 存储按钮
+                Button {
+                    handleStore()
+                } label: {
+                    Text("存储")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule()
+                                .stroke(ApocalypseTheme.textMuted.opacity(0.5), lineWidth: 1)
+                        )
+                }
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(ApocalypseTheme.cardBackground)
+        )
+    }
+
+    /// 品质颜色
+    private func qualityColor(_ quality: ItemQuality) -> Color {
+        switch quality {
+        case .broken: return .gray
+        case .worn: return .brown
+        case .normal: return .secondary
+        case .good: return .green
+        case .excellent: return .blue
+        }
+    }
+
+    /// 使用物品
+    private func handleUse() {
+        print("使用物品: \(definition.name)")
+        print("  - 数量: \(item.quantity)")
+        print("  - 分类: \(definition.categoryDisplayName)")
+        // TODO: 实现使用逻辑
+    }
+
+    /// 存储物品
+    private func handleStore() {
+        print("存储物品: \(definition.name)")
+        print("  - 数量: \(item.quantity)")
+        // TODO: 实现存储逻辑
+    }
+}
+
+// MARK: - 预览
+
+#Preview {
+    NavigationStack {
+        BackpackView()
+    }
+}

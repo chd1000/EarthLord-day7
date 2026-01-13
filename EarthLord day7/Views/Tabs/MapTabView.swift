@@ -55,6 +55,10 @@ struct MapTabView: View {
     @State private var showCollisionWarning = false
     @State private var collisionWarningLevel: WarningLevel = .safe
 
+    // MARK: - 探索功能状态
+    @State private var isExploring: Bool = false
+    @State private var showExplorationResult: Bool = false
+
     /// 当前用户 ID（用于碰撞检测）
     private var currentUserId: String? {
         authManager.currentUser?.id.uuidString
@@ -120,16 +124,20 @@ struct MapTabView: View {
                 }
 
                 HStack(alignment: .bottom) {
-                    // 圈地按钮（左下角）
+                    // 圈地按钮（左侧）
                     trackingButton
-                        .padding(.leading, 16)
 
                     Spacer()
 
-                    // 定位按钮（右下角）
+                    // 定位按钮（中间）
                     locateButton
-                        .padding(.trailing, 16)
+
+                    Spacer()
+
+                    // 探索按钮（右侧）
+                    exploreButton
                 }
+                .padding(.horizontal, 16)
                 .padding(.bottom, 16)
             }
 
@@ -168,6 +176,10 @@ struct MapTabView: View {
             Button("确定", role: .cancel) { }
         } message: {
             Text(uploadErrorMessage)
+        }
+        // 探索结果弹窗
+        .sheet(isPresented: $showExplorationResult) {
+            ExplorationResultView(result: MockExplorationData.mockExplorationResult)
         }
     }
 
@@ -396,6 +408,57 @@ struct MapTabView: View {
             }
         }
         .disabled(!locationManager.isAuthorized)
+    }
+
+    // MARK: - 探索按钮
+
+    private var exploreButton: some View {
+        Button {
+            startExploration()
+        } label: {
+            HStack(spacing: 8) {
+                if isExploring {
+                    // 加载状态
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.8)
+
+                    Text("探索中...")
+                        .font(.system(size: 14, weight: .semibold))
+                } else {
+                    // 正常状态
+                    Image(systemName: "binoculars.fill")
+                        .font(.system(size: 16, weight: .semibold))
+
+                    Text("探索")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(
+                Capsule()
+                    .fill(isExploring ? ApocalypseTheme.textMuted : ApocalypseTheme.primary)
+                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+            )
+        }
+        .disabled(isExploring || !locationManager.isAuthorized)
+        .opacity(locationManager.isAuthorized ? 1.0 : 0.5)
+        .animation(.easeInOut(duration: 0.3), value: isExploring)
+    }
+
+    /// 开始探索
+    private func startExploration() {
+        guard !isExploring else { return }
+
+        isExploring = true
+
+        // 模拟 1.5 秒的搜索过程
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            isExploring = false
+            showExplorationResult = true
+        }
     }
 
     // MARK: - 权限被拒绝提示
