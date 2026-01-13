@@ -199,37 +199,29 @@ class TerritoryManager: ObservableObject {
 
     // MARK: - 加载方法
 
-    /// 加载当前用户的所有领地
+    /// 加载所有用户的领地（用于地图显示和碰撞检测）
     func loadAllTerritories() async {
-        print("📥 [加载领地] 开始加载...")
+        print("📥 [加载所有领地] 开始加载...")
 
         isLoading = true
         errorMessage = nil
 
-        // 1. 获取当前用户 ID
-        guard let userId = await getCurrentUserId() else {
-            errorMessage = "未登录，无法加载领地"
-            print("❌ [加载领地] 未登录")
-            isLoading = false
-            return
-        }
-
-        // 2. 从 Supabase 查询
+        // 从 Supabase 查询所有领地
         do {
             let response: [Territory] = try await supabase
                 .from("territories")
                 .select()
-                .eq("user_id", value: userId.uuidString)
+                .eq("is_active", value: true)
                 .order("created_at", ascending: false)
                 .execute()
                 .value
 
             territories = response
-            print("✅ [加载领地] 加载成功，共 \(territories.count) 块领地")
+            print("✅ [加载所有领地] 加载成功，共 \(territories.count) 块领地")
 
         } catch {
             errorMessage = "加载失败: \(error.localizedDescription)"
-            print("❌ [加载领地] 加载失败: \(error)")
+            print("❌ [加载所有领地] 加载失败: \(error)")
         }
 
         isLoading = false
