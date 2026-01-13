@@ -97,6 +97,34 @@ struct Territory: Codable, Identifiable {
             return []
         }
     }
+
+    /// 格式化面积显示
+    var formattedArea: String {
+        if area >= 1_000_000 {
+            return String(format: "%.2f km²", area / 1_000_000)
+        } else {
+            return String(format: "%.0f m²", area)
+        }
+    }
+
+    /// 显示名称（无名称时显示默认值）
+    var displayName: String {
+        return name ?? "未命名领地"
+    }
+
+    /// 格式化创建时间
+    var formattedCreatedAt: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        return formatter.string(from: createdAt)
+    }
+
+    /// 计算领地中心点
+    var centerCoordinate: CLLocationCoordinate2D {
+        let centerLat = (bboxMinLat + bboxMaxLat) / 2
+        let centerLon = (bboxMinLon + bboxMaxLon) / 2
+        return CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon)
+    }
 }
 
 // MARK: - 用于上传的数据结构

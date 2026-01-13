@@ -259,6 +259,80 @@ class TerritoryManager: ObservableObject {
         }
     }
 
+    // MARK: - 我的领地方法
+
+    /// 加载我的激活领地（用于领地列表页面）
+    /// - Returns: 我的领地数组
+    func loadMyTerritories() async -> [Territory] {
+        print("📥 [加载我的领地] 开始加载...")
+
+        guard let userId = await getCurrentUserId() else {
+            print("❌ [加载我的领地] 未登录")
+            return []
+        }
+
+        do {
+            let response: [Territory] = try await supabase
+                .from("territories")
+                .select()
+                .eq("user_id", value: userId.uuidString)
+                .eq("is_active", value: true)
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+
+            print("✅ [加载我的领地] 加载成功，共 \(response.count) 块领地")
+            return response
+
+        } catch {
+            print("❌ [加载我的领地] 加载失败: \(error)")
+            return []
+        }
+    }
+
+    /// 删除领地
+    /// - Parameter territoryId: 领地 ID
+    /// - Returns: 是否删除成功
+    func deleteTerritory(territoryId: UUID) async -> Bool {
+        print("🗑️ [删除领地] 开始删除，ID: \(territoryId)")
+
+        do {
+            try await supabase
+                .from("territories")
+                .delete()
+                .eq("id", value: territoryId.uuidString)
+                .execute()
+
+            print("✅ [删除领地] 删除成功")
+            TerritoryLogger.shared.log("领地已删除: \(territoryId)", type: .info)
+
+            // 从本地列表中移除
+            territories.removeAll { $0.id == territoryId }
+
+            return true
+
+        } catch {
+            print("❌ [删除领地] 删除失败: \(error)")
+            TerritoryLogger.shared.log("删除领地失败: \(error.localizedDescription)", type: .error)
+            return false
+        }
+    }
+
+    /// 计算我的领地总面积
+    var totalArea: Double {
+        territories.filter { $0.isActive }.reduce(0) { $0 + $1.area }
+    }
+
+    /// 格式化总面积
+    var formattedTotalArea: String {
+        let total = totalArea
+        if total >= 1_000_000 {
+            return String(format: "%.2f km²", total / 1_000_000)
+        } else {
+            return String(format: "%.0f m²", total)
+        }
+    }
+
     // MARK: - 辅助方法
 
     /// 获取当前登录用户的 ID
