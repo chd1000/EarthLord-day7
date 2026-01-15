@@ -120,6 +120,13 @@ struct MapTabView: View {
                         .padding(.bottom, 12)
                 }
 
+                // 探索状态面板（探索中显示）
+                if explorationManager.isExploring {
+                    explorationStatsPanel
+                        .padding(.bottom, 12)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
                 HStack(alignment: .bottom) {
                     // 圈地按钮（左侧）
                     trackingButton
@@ -497,6 +504,71 @@ struct MapTabView: View {
         .opacity(locationManager.isAuthorized ? 1.0 : 0.5)
         .animation(.easeInOut(duration: 0.3), value: explorationManager.isExploring)
         .animation(.easeInOut(duration: 0.3), value: explorationManager.currentDistance)
+    }
+
+    // MARK: - 探索状态面板
+
+    /// 探索状态面板（显示距离、速度、时长）
+    private var explorationStatsPanel: some View {
+        HStack(spacing: 0) {
+            // 距离
+            VStack(spacing: 4) {
+                Text("\(Int(explorationManager.currentDistance)) m")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                Text("距离")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.7))
+            }
+            .frame(maxWidth: .infinity)
+
+            // 分隔线
+            Rectangle()
+                .fill(Color.white.opacity(0.3))
+                .frame(width: 1, height: 40)
+
+            // 速度
+            VStack(spacing: 4) {
+                Text(String(format: "%.1f km/h", locationManager.explorationCurrentSpeed))
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundColor(locationManager.isExplorationOverSpeed ? .red : .white)
+                Text("速度")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.7))
+            }
+            .frame(maxWidth: .infinity)
+
+            // 分隔线
+            Rectangle()
+                .fill(Color.white.opacity(0.3))
+                .frame(width: 1, height: 40)
+
+            // 时长
+            VStack(spacing: 4) {
+                Text(formatDuration(Int(explorationManager.currentDuration)))
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                Text("时长")
+                    .font(.system(size: 12))
+                    .foregroundColor(.white.opacity(0.7))
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.black.opacity(0.75))
+                .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
+        )
+        .padding(.horizontal, 40)
+    }
+
+    /// 格式化时长（秒 → mm:ss）
+    private func formatDuration(_ seconds: Int) -> String {
+        let minutes = seconds / 60
+        let secs = seconds % 60
+        return String(format: "%d:%02d", minutes, secs)
     }
 
     // MARK: - 权限被拒绝提示

@@ -91,6 +91,9 @@ class LocationManager: NSObject, ObservableObject {
     /// 探索速度警告信息
     @Published var explorationSpeedWarning: String?
 
+    /// 探索当前速度（km/h）
+    @Published var explorationCurrentSpeed: Double = 0
+
     // MARK: - 私有属性（探索追踪）
 
     /// 上次探索记录的位置
@@ -749,6 +752,7 @@ class LocationManager: NSObject, ObservableObject {
         explorationOverSpeedStartTime = nil
         lastExplorationRecordedLocation = nil
         lastExplorationRecordedTimestamp = nil
+        explorationCurrentSpeed = 0
 
         print("🔍 [探索] 停止追踪，距离: \(String(format: "%.0f", distance))m，时长: \(Int(duration))秒")
         TerritoryLogger.shared.log("探索停止: 距离\(String(format: "%.0f", distance))m，时长\(Int(duration))秒", type: .info)
@@ -790,6 +794,7 @@ class LocationManager: NSObject, ObservableObject {
 
             if timeInterval > 0.5 {
                 let speedKMH = (distance / timeInterval) * 3.6
+                explorationCurrentSpeed = speedKMH  // 更新当前速度
                 print("🔍 [探索] 速度检测: \(String(format: "%.1f", speedKMH)) km/h")
 
                 if speedKMH > explorationSpeedThreshold {
@@ -801,6 +806,9 @@ class LocationManager: NSObject, ObservableObject {
                     clearExplorationOverSpeed()
                 }
             }
+        } else {
+            // 首次检测，速度为0
+            explorationCurrentSpeed = 0
         }
 
         // 3. 更新速度计算用的时间戳
