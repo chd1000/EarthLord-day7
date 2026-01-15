@@ -20,6 +20,7 @@ struct MapTabView: View {
     // MARK: - 状态管理
     @StateObject private var locationManager = LocationManager.shared
     @StateObject private var territoryManager = TerritoryManager.shared
+    @StateObject private var explorationManager = ExplorationManager.shared
 
     /// 已加载的领地列表
     @State private var territories: [Territory] = []
@@ -54,10 +55,6 @@ struct MapTabView: View {
     @State private var collisionWarning: String?
     @State private var showCollisionWarning = false
     @State private var collisionWarningLevel: WarningLevel = .safe
-
-    // MARK: - 探索功能状态
-    @State private var isExploring: Bool = false
-    @State private var showExplorationResult: Bool = false
 
     /// 当前用户 ID（用于碰撞检测）
     private var currentUserId: String? {
@@ -134,8 +131,29 @@ struct MapTabView: View {
 
                     Spacer()
 
-                    // 探索按钮（右侧）
-                    exploreButton
+                    // 探索按钮区域（右侧）
+                    VStack(spacing: 8) {
+                        // 超速警告条
+                        if locationManager.isExplorationOverSpeed {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.white)
+                                Text(locationManager.explorationSpeedWarning ?? "速度过快")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(.white)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(
+                                Capsule()
+                                    .fill(Color.red)
+                            )
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
+
+                        exploreButton
+                    }
+                    .animation(.easeInOut(duration: 0.3), value: locationManager.isExplorationOverSpeed)
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 16)
@@ -178,8 +196,19 @@ struct MapTabView: View {
             Text(uploadErrorMessage)
         }
         // 探索结果弹窗
-        .sheet(isPresented: $showExplorationResult) {
-            ExplorationResultView(result: MockExplorationData.mockExplorationResult)
+        .sheet(isPresented: $explorationManager.showResult) {
+            ExplorationResultView(result: explorationManager.explorationResult)
+                .onDisappear {
+                    explorationManager.resetResult()
+                }
+        }
+        // 探索失败弹窗
+        .alert("探索失败", isPresented: $explorationManager.explorationFailed) {
+            Button("确定") {
+                explorationManager.resetFailure()
+            }
+        } message: {
+            Text(explorationManager.failureReason ?? "未知原因")
         }
     }
 
@@ -194,6 +223,10 @@ struct MapTabView: View {
             pathUpdateVersion: locationManager.pathUpdateVersion,
             isTracking: locationManager.isTracking,
             isPathClosed: locationManager.isPathClosed,
+            // 探索轨迹参数
+            explorationPath: $locationManager.explorationCoordinates,
+            explorationPathUpdateVersion: locationManager.explorationPathUpdateVersion,
+            isExplorationTracking: locationManager.isExplorationTracking,
             territories: territories,
             currentUserId: authManager.currentUser?.id.uuidString
         )
@@ -414,22 +447,39 @@ struct MapTabView: View {
 
     private var exploreButton: some View {
         Button {
-            startExploration()
+            Task {
+                if explorationManager.isExploring {
+                    // 结束探索
+                    _ = await explorationManager.endExploration()
+                } else {
+                    // 开始探索
+                    _ = await explorationManager.startExploration()
+                }
+            }
         } label: {
             HStack(spacing: 8) {
-                if isExploring {
+                if explorationManager.isLoading {
                     // 加载状态
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(0.8)
-
-                    Text("探索中...")
+                    Text("处理中...")
                         .font(.system(size: 14, weight: .semibold))
+                } else if explorationManager.isExploring {
+                    // 探索中状态
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 14, weight: .semibold))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("结束探索")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("\(Int(explorationManager.currentDistance))m")
+                            .font(.system(size: 10, weight: .medium))
+                            .opacity(0.8)
+                    }
                 } else {
                     // 正常状态
                     Image(systemName: "binoculars.fill")
                         .font(.system(size: 16, weight: .semibold))
-
                     Text("探索")
                         .font(.system(size: 14, weight: .semibold))
                 }
@@ -439,26 +489,14 @@ struct MapTabView: View {
             .padding(.vertical, 12)
             .background(
                 Capsule()
-                    .fill(isExploring ? ApocalypseTheme.textMuted : ApocalypseTheme.primary)
+                    .fill(explorationManager.isExploring ? ApocalypseTheme.warning : ApocalypseTheme.primary)
                     .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
             )
         }
-        .disabled(isExploring || !locationManager.isAuthorized)
+        .disabled(explorationManager.isLoading || !locationManager.isAuthorized)
         .opacity(locationManager.isAuthorized ? 1.0 : 0.5)
-        .animation(.easeInOut(duration: 0.3), value: isExploring)
-    }
-
-    /// 开始探索
-    private func startExploration() {
-        guard !isExploring else { return }
-
-        isExploring = true
-
-        // 模拟 1.5 秒的搜索过程
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            isExploring = false
-            showExplorationResult = true
-        }
+        .animation(.easeInOut(duration: 0.3), value: explorationManager.isExploring)
+        .animation(.easeInOut(duration: 0.3), value: explorationManager.currentDistance)
     }
 
     // MARK: - 权限被拒绝提示

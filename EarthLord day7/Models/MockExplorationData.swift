@@ -241,11 +241,6 @@ struct ExplorationStats: Codable {
     let walkDistanceTotal: Double       // 累计行走距离（米）
     let walkDistanceRank: Int           // 行走距离排名
 
-    // 探索面积
-    let exploredAreaThisTime: Double    // 本次探索面积（平方米）
-    let exploredAreaTotal: Double       // 累计探索面积（平方米）
-    let exploredAreaRank: Int           // 探索面积排名
-
     // 探索时长
     let explorationDuration: TimeInterval   // 探索时长（秒）
 
@@ -268,28 +263,6 @@ struct ExplorationStats: Codable {
             return String(format: "%.2f km", walkDistanceTotal / 1000)
         } else {
             return String(format: "%.0f m", walkDistanceTotal)
-        }
-    }
-
-    /// 格式化本次探索面积
-    var formattedExploredAreaThisTime: String {
-        if exploredAreaThisTime >= 1_000_000 {
-            return String(format: "%.2f km²", exploredAreaThisTime / 1_000_000)
-        } else if exploredAreaThisTime >= 10000 {
-            return String(format: "%.1f 万m²", exploredAreaThisTime / 10000)
-        } else {
-            return String(format: "%.0f m²", exploredAreaThisTime)
-        }
-    }
-
-    /// 格式化累计探索面积
-    var formattedExploredAreaTotal: String {
-        if exploredAreaTotal >= 1_000_000 {
-            return String(format: "%.2f km²", exploredAreaTotal / 1_000_000)
-        } else if exploredAreaTotal >= 10000 {
-            return String(format: "%.1f 万m²", exploredAreaTotal / 10000)
-        } else {
-            return String(format: "%.0f m²", exploredAreaTotal)
         }
     }
 
@@ -583,7 +556,7 @@ struct MockExplorationData {
 
     // MARK: - 探索结果假数据
 
-    /// 测试用探索结果
+    /// 测试用探索结果（旧版本，保留兼容）
     static let mockExplorationResult: ExplorationResult = ExplorationResult(
         id: UUID(),
         startTime: Date().addingTimeInterval(-1800),  // 30分钟前开始
@@ -592,9 +565,6 @@ struct MockExplorationData {
             walkDistanceThisTime: 2500,               // 本次 2500 米
             walkDistanceTotal: 15000,                 // 累计 15000 米
             walkDistanceRank: 42,                     // 排名 42
-            exploredAreaThisTime: 50000,              // 本次 5 万平方米
-            exploredAreaTotal: 250000,                // 累计 25 万平方米
-            exploredAreaRank: 38,                     // 排名 38
             explorationDuration: 1800,                // 30 分钟
             discoveredPOICount: 2,                    // 本次发现 2 个 POI
             totalPOICount: 15                         // 累计发现 15 个 POI
@@ -606,6 +576,40 @@ struct MockExplorationData {
             ExplorationResult.ObtainedItem(itemId: "water_bottle", quantity: 3, quality: nil),
             // 罐头 x2（普通品质）
             ExplorationResult.ObtainedItem(itemId: "canned_food", quantity: 2, quality: .normal)
+        ]
+    )
+
+    /// 测试用探索奖励结果（新版本，用于实际探索功能）
+    static let mockExplorationRewardResult: ExplorationRewardResult = ExplorationRewardResult(
+        sessionId: UUID(),
+        distance: 2500,
+        duration: 1800,
+        rewardTier: .gold,
+        rewardedItems: [
+            ExplorationRewardResult.RewardedItem(
+                itemId: "wood",
+                name: "木材",
+                quantity: 5,
+                rarity: "common",
+                icon: "cube.fill",
+                category: "material"
+            ),
+            ExplorationRewardResult.RewardedItem(
+                itemId: "water_bottle",
+                name: "矿泉水",
+                quantity: 3,
+                rarity: "common",
+                icon: "drop.fill",
+                category: "food"
+            ),
+            ExplorationRewardResult.RewardedItem(
+                itemId: "medicine",
+                name: "药品",
+                quantity: 2,
+                rarity: "rare",
+                icon: "pills.fill",
+                category: "medical"
+            )
         ]
     )
 

@@ -13,7 +13,7 @@ struct ExplorationResultView: View {
     // MARK: - 属性
 
     /// 探索结果数据（成功时有值）
-    let result: ExplorationResult?
+    let result: ExplorationRewardResult?
 
     /// 错误信息（失败时有值）
     var errorMessage: String? = nil
@@ -35,12 +35,6 @@ struct ExplorationResultView: View {
     /// 动画数字：行走距离
     @State private var animatedWalkDistance: Double = 0
 
-    /// 动画数字：探索面积
-    @State private var animatedExploredArea: Double = 0
-
-    /// 动画数字：发现POI
-    @State private var animatedPOICount: Int = 0
-
     /// 是否为错误状态
     private var isError: Bool {
         result == nil && errorMessage != nil
@@ -57,12 +51,15 @@ struct ExplorationResultView: View {
         }
     }
 
-    /// 格式化动画探索面积
-    private var formattedAnimatedExploredArea: String {
-        if animatedExploredArea >= 1000000 {
-            return String(format: "%.2f km²", animatedExploredArea / 1000000)
+    /// 格式化时长
+    private var formattedDuration: String {
+        guard let result = result else { return "--" }
+        let minutes = Int(result.duration) / 60
+        let seconds = Int(result.duration) % 60
+        if minutes > 0 {
+            return "\(minutes)分\(seconds)秒"
         } else {
-            return String(format: "%.0f m²", animatedExploredArea)
+            return "\(seconds)秒"
         }
     }
 
@@ -125,7 +122,7 @@ struct ExplorationResultView: View {
     }
 
     /// 启动动画
-    private func startAnimations(with result: ExplorationResult) {
+    private func startAnimations(with result: ExplorationRewardResult) {
         // 入场动画
         withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
             showContent = true
@@ -140,15 +137,7 @@ struct ExplorationResultView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             // 行走距离动画
             withAnimation(.easeOut(duration: 1.0)) {
-                animatedWalkDistance = result.stats.walkDistanceThisTime
-            }
-            // 探索面积动画（稍微延迟）
-            withAnimation(.easeOut(duration: 1.0).delay(0.1)) {
-                animatedExploredArea = result.stats.exploredAreaThisTime
-            }
-            // POI 数量动画（再延迟）
-            withAnimation(.easeOut(duration: 0.8).delay(0.2)) {
-                animatedPOICount = result.stats.discoveredPOICount
+                animatedWalkDistance = result.distance
             }
         }
     }
@@ -235,7 +224,7 @@ struct ExplorationResultView: View {
                 Circle()
                     .fill(
                         RadialGradient(
-                            colors: [ApocalypseTheme.primary.opacity(0.3), Color.clear],
+                            colors: [tierColor.opacity(0.3), Color.clear],
                             center: .center,
                             startRadius: 30,
                             endRadius: 70
@@ -247,16 +236,16 @@ struct ExplorationResultView: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [ApocalypseTheme.primary, ApocalypseTheme.primaryDark],
+                            colors: [tierColor, tierColor.opacity(0.7)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                     .frame(width: 90, height: 90)
-                    .shadow(color: ApocalypseTheme.primary.opacity(0.5), radius: 15, x: 0, y: 5)
+                    .shadow(color: tierColor.opacity(0.5), radius: 15, x: 0, y: 5)
 
                 // 图标
-                Image(systemName: "map.fill")
+                Image(systemName: result?.rewardTier.icon ?? "map.fill")
                     .font(.system(size: 40))
                     .foregroundColor(.white)
             }
@@ -266,13 +255,42 @@ struct ExplorationResultView: View {
                 .font(.system(size: 28, weight: .bold))
                 .foregroundColor(ApocalypseTheme.textPrimary)
 
+            // 奖励等级
+            HStack(spacing: 8) {
+                Text("奖励等级")
+                    .font(.system(size: 14))
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+
+                Text(result?.rewardTier.displayName ?? "无奖励")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(tierColor)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(tierColor.opacity(0.15))
+                    )
+            }
+
             // 副标题
-            Text("本次探索已记录，物资已添加到背包")
+            Text(result?.rewardTier == RewardTier.none ? "行走距离不足200米，无法获得奖励" : "物资已添加到背包")
                 .font(.system(size: 14))
                 .foregroundColor(ApocalypseTheme.textSecondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.top, 10)
+    }
+
+    /// 奖励等级对应颜色
+    private var tierColor: Color {
+        guard let tier = result?.rewardTier else { return ApocalypseTheme.primary }
+        switch tier {
+        case .none: return .gray
+        case .bronze: return .brown
+        case .silver: return .gray
+        case .gold: return .yellow
+        case .diamond: return .cyan
+        }
     }
 
     // MARK: - 统计数据卡片
@@ -295,7 +313,7 @@ struct ExplorationResultView: View {
                 HStack(spacing: 4) {
                     Image(systemName: "clock.fill")
                         .font(.system(size: 12))
-                    Text(result?.stats.formattedDuration ?? "--")
+                    Text(formattedDuration)
                         .font(.system(size: 13, weight: .medium))
                 }
                 .foregroundColor(ApocalypseTheme.textSecondary)
@@ -306,58 +324,56 @@ struct ExplorationResultView: View {
                 .background(ApocalypseTheme.textMuted.opacity(0.3))
 
             // 行走距离
-            StatRow(
-                icon: "figure.walk",
-                iconColor: .cyan,
-                title: "行走距离",
-                thisTime: formattedAnimatedWalkDistance,
-                total: result?.stats.formattedWalkDistanceTotal ?? "--",
-                rank: result?.stats.walkDistanceRank ?? 0
-            )
-
-            // 探索面积
-            StatRow(
-                icon: "square.dashed",
-                iconColor: .green,
-                title: "探索面积",
-                thisTime: formattedAnimatedExploredArea,
-                total: result?.stats.formattedExploredAreaTotal ?? "--",
-                rank: result?.stats.exploredAreaRank ?? 0
-            )
-
-            // 发现POI
-            HStack {
+            HStack(spacing: 12) {
                 // 图标
                 ZStack {
                     Circle()
-                        .fill(Color.purple.opacity(0.15))
+                        .fill(Color.cyan.opacity(0.15))
                         .frame(width: 36, height: 36)
 
-                    Image(systemName: "mappin.and.ellipse")
+                    Image(systemName: "figure.walk")
                         .font(.system(size: 14))
-                        .foregroundColor(.purple)
+                        .foregroundColor(.cyan)
                 }
 
                 // 标题
-                Text("发现地点")
+                Text("行走距离")
                     .font(.system(size: 14))
                     .foregroundColor(ApocalypseTheme.textSecondary)
 
                 Spacer()
 
                 // 数值
-                HStack(spacing: 4) {
-                    Text("本次 ")
-                        .font(.system(size: 12))
-                        .foregroundColor(ApocalypseTheme.textMuted)
-                    Text("+\(animatedPOICount)")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(ApocalypseTheme.primary)
-                        .contentTransition(.numericText())
-                    Text(" / 累计 \(result?.stats.totalPOICount ?? 0)")
-                        .font(.system(size: 12))
-                        .foregroundColor(ApocalypseTheme.textMuted)
+                Text(formattedAnimatedWalkDistance)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(ApocalypseTheme.textPrimary)
+                    .contentTransition(.numericText())
+            }
+
+            // 奖励等级说明
+            HStack(spacing: 12) {
+                // 图标
+                ZStack {
+                    Circle()
+                        .fill(tierColor.opacity(0.15))
+                        .frame(width: 36, height: 36)
+
+                    Image(systemName: result?.rewardTier.icon ?? "medal")
+                        .font(.system(size: 14))
+                        .foregroundColor(tierColor)
                 }
+
+                // 标题
+                Text("奖励等级")
+                    .font(.system(size: 14))
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+
+                Spacer()
+
+                // 等级
+                Text(result?.rewardTier.displayName ?? "无")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(tierColor)
             }
         }
         .padding(16)
@@ -384,7 +400,7 @@ struct ExplorationResultView: View {
                 Spacer()
 
                 // 物品数量
-                Text("\(result?.obtainedItems.count ?? 0) 种")
+                Text("\(result?.rewardedItems.count ?? 0) 种")
                     .font(.system(size: 13))
                     .foregroundColor(ApocalypseTheme.textSecondary)
             }
@@ -394,32 +410,48 @@ struct ExplorationResultView: View {
                 .background(ApocalypseTheme.textMuted.opacity(0.3))
 
             // 物品列表
-            VStack(spacing: 10) {
-                ForEach(Array((result?.obtainedItems ?? []).enumerated()), id: \.offset) { index, item in
-                    if let definition = MockExplorationData.getItemDefinition(for: item.itemId) {
-                        RewardItemRow(
-                            name: definition.name,
+            if let items = result?.rewardedItems, !items.isEmpty {
+                VStack(spacing: 10) {
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                        RewardItemRowNew(
+                            name: item.name,
                             quantity: item.quantity,
-                            quality: item.quality,
-                            icon: definition.categoryIconName,
-                            color: categoryColor(definition.category),
+                            rarity: item.rarity,
+                            icon: item.icon,
+                            category: item.category,
                             delay: Double(index) * 0.2
                         )
                     }
                 }
-            }
 
-            // 底部提示
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundColor(ApocalypseTheme.success)
+                // 底部提示
+                HStack(spacing: 6) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(ApocalypseTheme.success)
 
-                Text("已添加到背包")
-                    .font(.system(size: 13))
-                    .foregroundColor(ApocalypseTheme.success)
+                    Text("已添加到背包")
+                        .font(.system(size: 13))
+                        .foregroundColor(ApocalypseTheme.success)
+                }
+                .padding(.top, 4)
+            } else {
+                // 无奖励状态
+                VStack(spacing: 12) {
+                    Image(systemName: "tray")
+                        .font(.system(size: 40))
+                        .foregroundColor(ApocalypseTheme.textMuted)
+
+                    Text("行走距离不足，没有获得物品")
+                        .font(.system(size: 14))
+                        .foregroundColor(ApocalypseTheme.textMuted)
+
+                    Text("走满200米可获得铜级奖励")
+                        .font(.system(size: 12))
+                        .foregroundColor(ApocalypseTheme.textMuted)
+                }
+                .padding(.vertical, 20)
             }
-            .padding(.top, 4)
         }
         .padding(16)
         .background(
@@ -456,114 +488,55 @@ struct ExplorationResultView: View {
             .shadow(color: ApocalypseTheme.success.opacity(0.3), radius: 8, x: 0, y: 4)
         }
     }
-
-    // MARK: - 辅助方法
-
-    /// 分类颜色
-    private func categoryColor(_ category: ItemCategory) -> Color {
-        switch category {
-        case .water: return .cyan
-        case .food: return .orange
-        case .medical: return .red
-        case .material: return .brown
-        case .tool: return .gray
-        case .weapon: return .purple
-        case .clothing: return .blue
-        case .misc: return .secondary
-        }
-    }
 }
 
-// MARK: - 统计行组件
-
-/// 统计数据行
-struct StatRow: View {
-    let icon: String
-    let iconColor: Color
-    let title: String
-    let thisTime: String
-    let total: String
-    let rank: Int
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // 图标
-            ZStack {
-                Circle()
-                    .fill(iconColor.opacity(0.15))
-                    .frame(width: 36, height: 36)
-
-                Image(systemName: icon)
-                    .font(.system(size: 14))
-                    .foregroundColor(iconColor)
-            }
-
-            // 标题
-            Text(title)
-                .font(.system(size: 14))
-                .foregroundColor(ApocalypseTheme.textSecondary)
-
-            Spacer()
-
-            // 数值区域
-            VStack(alignment: .trailing, spacing: 2) {
-                // 本次
-                HStack(spacing: 4) {
-                    Text("本次")
-                        .font(.system(size: 11))
-                        .foregroundColor(ApocalypseTheme.textMuted)
-                    Text(thisTime)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(ApocalypseTheme.textPrimary)
-                }
-
-                // 累计 + 排名
-                HStack(spacing: 6) {
-                    Text("累计 \(total)")
-                        .font(.system(size: 11))
-                        .foregroundColor(ApocalypseTheme.textMuted)
-
-                    // 排名标签
-                    Text("#\(rank)")
-                        .font(.system(size: 12, weight: .bold, design: .monospaced))
-                        .foregroundColor(ApocalypseTheme.success)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(ApocalypseTheme.success.opacity(0.15))
-                        )
-                }
-            }
-        }
-    }
-}
-
-// MARK: - 奖励物品行组件
+// MARK: - 奖励物品行组件（新版）
 
 /// 奖励物品行
-struct RewardItemRow: View {
+struct RewardItemRowNew: View {
     let name: String
     let quantity: Int
-    let quality: ItemQuality?
+    let rarity: String
     let icon: String
-    let color: Color
+    let category: String
     let delay: Double
 
     @State private var showRow: Bool = false
     @State private var showCheck: Bool = false
 
+    /// 分类颜色
+    private var categoryColor: Color {
+        switch category {
+        case "food": return .orange
+        case "medical": return .red
+        case "tool": return .gray
+        case "material": return .brown
+        case "equipment": return .purple
+        default: return .secondary
+        }
+    }
+
+    /// 稀有度颜色
+    private var rarityColor: Color {
+        switch rarity {
+        case "common": return .gray
+        case "rare": return .blue
+        case "epic": return .purple
+        default: return .gray
+        }
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             // 图标
             ZStack {
                 Circle()
-                    .fill(color.opacity(0.15))
+                    .fill(categoryColor.opacity(0.15))
                     .frame(width: 40, height: 40)
 
                 Image(systemName: icon)
                     .font(.system(size: 16))
-                    .foregroundColor(color)
+                    .foregroundColor(categoryColor)
             }
 
             // 名称
@@ -571,18 +544,16 @@ struct RewardItemRow: View {
                 .font(.system(size: 15, weight: .medium))
                 .foregroundColor(ApocalypseTheme.textPrimary)
 
-            // 品质（如有）
-            if let quality = quality {
-                Text(quality.displayName)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(qualityColor(quality))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        Capsule()
-                            .fill(qualityColor(quality).opacity(0.15))
-                    )
-            }
+            // 稀有度标签
+            Text(rarityDisplayName)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(rarityColor)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(
+                    Capsule()
+                        .fill(rarityColor.opacity(0.15))
+                )
 
             Spacer()
 
@@ -617,22 +588,44 @@ struct RewardItemRow: View {
         }
     }
 
-    /// 品质颜色
-    private func qualityColor(_ quality: ItemQuality) -> Color {
-        switch quality {
-        case .broken: return .gray
-        case .worn: return .brown
-        case .normal: return .secondary
-        case .good: return .green
-        case .excellent: return .blue
+    /// 稀有度显示名称
+    private var rarityDisplayName: String {
+        switch rarity {
+        case "common": return "普通"
+        case "rare": return "稀有"
+        case "epic": return "史诗"
+        default: return rarity
         }
     }
 }
 
 // MARK: - 预览
 
-#Preview("成功状态") {
-    ExplorationResultView(result: MockExplorationData.mockExplorationResult)
+#Preview("成功状态 - 有奖励") {
+    ExplorationResultView(
+        result: ExplorationRewardResult(
+            sessionId: UUID(),
+            distance: 850,
+            duration: 600,
+            rewardTier: .silver,
+            rewardedItems: [
+                .init(itemId: "water_bottle", name: "纯净水", quantity: 2, rarity: "common", icon: "drop.fill", category: "food"),
+                .init(itemId: "bandage", name: "绷带", quantity: 1, rarity: "common", icon: "bandage", category: "medical")
+            ]
+        )
+    )
+}
+
+#Preview("成功状态 - 无奖励") {
+    ExplorationResultView(
+        result: ExplorationRewardResult(
+            sessionId: UUID(),
+            distance: 100,
+            duration: 120,
+            rewardTier: .none,
+            rewardedItems: []
+        )
+    )
 }
 
 #Preview("错误状态") {

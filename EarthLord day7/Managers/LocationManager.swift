@@ -66,6 +66,65 @@ class LocationManager: NSObject, ObservableObject {
     /// 计算出的领地面积（平方米）
     @Published var calculatedArea: Double = 0
 
+    // MARK: - 发布的状态（探索追踪）
+
+    /// 是否正在探索追踪
+    @Published var isExplorationTracking: Bool = false
+
+    /// 探索累计距离（米）
+    @Published var explorationDistance: Double = 0
+
+    /// 探索轨迹坐标
+    @Published var explorationCoordinates: [CLLocationCoordinate2D] = []
+
+    /// 探索轨迹更新版本号（用于触发 SwiftUI 更新）
+    @Published var explorationPathUpdateVersion: Int = 0
+
+    /// 探索开始时间
+    @Published var explorationStartTime: Date?
+
+    // MARK: - 发布的状态（探索速度检测）
+
+    /// 探索是否超速
+    @Published var isExplorationOverSpeed: Bool = false
+
+    /// 探索速度警告信息
+    @Published var explorationSpeedWarning: String?
+
+    // MARK: - 私有属性（探索追踪）
+
+    /// 上次探索记录的位置
+    private var lastExplorationLocation: CLLocation?
+
+    /// 探索定时器
+    private var explorationTimer: Timer?
+
+    /// 探索采点间隔（秒）- 比圈地更频繁
+    private let explorationTrackingInterval: TimeInterval = 3.0
+
+    /// 探索最小移动距离（米）- 比圈地更宽松，5米即记录
+    private let explorationMinimumDistance: CLLocationDistance = 5.0
+
+    /// GPS 精度阈值（米）- 过滤不准确的点
+    private let explorationAccuracyThreshold: CLLocationAccuracy = 30.0
+
+    // MARK: - 私有属性（探索速度检测）
+
+    /// 探索上次记录的位置（用于速度计算）
+    private var lastExplorationRecordedLocation: CLLocation?
+
+    /// 探索上次记录的时间戳
+    private var lastExplorationRecordedTimestamp: Date?
+
+    /// 探索超速开始时间（用于10秒倒计时）
+    private var explorationOverSpeedStartTime: Date?
+
+    /// 探索速度阈值 (km/h)
+    private let explorationSpeedThreshold: Double = 30.0
+
+    /// 超速容忍时间（秒）
+    private let overSpeedToleranceSeconds: TimeInterval = 10.0
+
     // MARK: - 私有属性（路径追踪）
 
     /// 当前位置（供 Timer 采点使用）
@@ -625,6 +684,198 @@ class LocationManager: NSObject, ObservableObject {
         return (true, nil)
     }
 
+    // MARK: - 公开方法（探索追踪）
+
+    /// 开始探索追踪
+    func startExplorationTracking() {
+        guard isAuthorized else {
+            print("⚠️ [探索] 未获得定位授权，无法开始探索追踪")
+            return
+        }
+        guard !isExplorationTracking else {
+            print("⚠️ [探索] 探索追踪已在进行中")
+            return
+        }
+
+        print("🔍 [探索] ========== 开始探索 ==========")
+        TerritoryLogger.shared.log("开始探索追踪", type: .info)
+
+        // 重置状态
+        explorationDistance = 0
+        explorationCoordinates.removeAll()
+        explorationPathUpdateVersion = 0
+        lastExplorationLocation = nil
+        explorationStartTime = Date()
+        isExplorationTracking = true
+
+        // 确保 GPS 已开启
+        if !isUpdatingLocation {
+            print("🔍 [探索] GPS未开启，正在启动...")
+            startUpdatingLocation()
+        }
+
+        // 记录起始点
+        if let location = currentLocation {
+            explorationCoordinates.append(location.coordinate)
+            explorationPathUpdateVersion += 1
+            lastExplorationLocation = location
+            print("🔍 [探索] 记录起始点: (\(String(format: "%.6f", location.coordinate.latitude)), \(String(format: "%.6f", location.coordinate.longitude)))")
+            TerritoryLogger.shared.log("探索起始点: (\(String(format: "%.6f", location.coordinate.latitude)), \(String(format: "%.6f", location.coordinate.longitude)))", type: .info)
+        }
+
+        // 启动定时器
+        explorationTimer = Timer.scheduledTimer(withTimeInterval: explorationTrackingInterval, repeats: true) { [weak self] _ in
+            self?.updateExplorationDistance()
+        }
+
+        print("🔍 [探索] 定时器已启动，间隔: \(explorationTrackingInterval)秒")
+        print("🔍 [探索] 当前GPS状态: \(isUpdatingLocation ? "开启" : "关闭")")
+        print("🔍 [探索] 当前位置: \(currentLocation != nil ? "有效" : "无")")
+    }
+
+    /// 停止探索追踪
+    /// - Returns: (距离, 时长) 元组
+    func stopExplorationTracking() -> (distance: Double, duration: TimeInterval) {
+        explorationTimer?.invalidate()
+        explorationTimer = nil
+        isExplorationTracking = false
+
+        let distance = explorationDistance
+        let duration = explorationStartTime.map { Date().timeIntervalSince($0) } ?? 0
+
+        // 重置速度检测状态
+        isExplorationOverSpeed = false
+        explorationSpeedWarning = nil
+        explorationOverSpeedStartTime = nil
+        lastExplorationRecordedLocation = nil
+        lastExplorationRecordedTimestamp = nil
+
+        print("🔍 [探索] 停止追踪，距离: \(String(format: "%.0f", distance))m，时长: \(Int(duration))秒")
+        TerritoryLogger.shared.log("探索停止: 距离\(String(format: "%.0f", distance))m，时长\(Int(duration))秒", type: .info)
+
+        return (distance, duration)
+    }
+
+    /// 获取探索起始坐标
+    var explorationStartCoordinate: CLLocationCoordinate2D? {
+        explorationCoordinates.first
+    }
+
+    /// 获取探索结束坐标
+    var explorationEndCoordinate: CLLocationCoordinate2D? {
+        explorationCoordinates.last
+    }
+
+    // MARK: - 私有方法（探索追踪）
+
+    /// 更新探索距离（定时器回调）
+    private func updateExplorationDistance() {
+        guard isExplorationTracking else { return }
+        guard let location = currentLocation else {
+            print("🔍 [探索] 当前位置为空，跳过采点")
+            return
+        }
+
+        // 1. 过滤精度不够的点
+        guard location.horizontalAccuracy <= explorationAccuracyThreshold else {
+            print("🔍 [探索] GPS精度不足 (\(String(format: "%.0f", location.horizontalAccuracy))m > \(explorationAccuracyThreshold)m)，跳过")
+            return
+        }
+
+        // 2. 速度检测
+        if let lastLocation = lastExplorationRecordedLocation,
+           let lastTimestamp = lastExplorationRecordedTimestamp {
+            let distance = location.distance(from: lastLocation)
+            let timeInterval = location.timestamp.timeIntervalSince(lastTimestamp)
+
+            if timeInterval > 0.5 {
+                let speedKMH = (distance / timeInterval) * 3.6
+                print("🔍 [探索] 速度检测: \(String(format: "%.1f", speedKMH)) km/h")
+
+                if speedKMH > explorationSpeedThreshold {
+                    // 超速处理
+                    handleExplorationOverSpeed(speed: speedKMH)
+                    return  // 超速时不记录距离
+                } else {
+                    // 速度正常，清除超速状态
+                    clearExplorationOverSpeed()
+                }
+            }
+        }
+
+        // 3. 更新速度计算用的时间戳
+        lastExplorationRecordedLocation = location
+        lastExplorationRecordedTimestamp = location.timestamp
+
+        // 4. 距离累加
+        if let lastLocation = lastExplorationLocation {
+            let distance = location.distance(from: lastLocation)
+
+            // 过滤 GPS 漂移（小于最小距离不记录）
+            guard distance >= explorationMinimumDistance else {
+                return
+            }
+
+            // 过滤跳点（单次移动超过 100 米视为异常）
+            guard distance <= 100 else {
+                print("🔍 [探索] 异常跳点 (\(String(format: "%.0f", distance))m)，跳过")
+                return
+            }
+
+            // 累加距离
+            explorationDistance += distance
+            explorationCoordinates.append(location.coordinate)
+            explorationPathUpdateVersion += 1
+            print("🔍 [探索] 距离: +\(String(format: "%.0f", distance))m，累计: \(String(format: "%.0f", explorationDistance))m，轨迹点: \(explorationCoordinates.count)")
+
+            // 每100米记录一次日志到 TerritoryLogger
+            let distanceInt = Int(explorationDistance)
+            if distanceInt > 0 && distanceInt % 100 == 0 {
+                TerritoryLogger.shared.log("探索距离: \(distanceInt)m", type: .info)
+            }
+        }
+
+        lastExplorationLocation = location
+    }
+
+    /// 处理探索超速
+    private func handleExplorationOverSpeed(speed: Double) {
+        if explorationOverSpeedStartTime == nil {
+            // 首次超速，开始计时
+            explorationOverSpeedStartTime = Date()
+            isExplorationOverSpeed = true
+            explorationSpeedWarning = "速度过快(\(String(format: "%.0f", speed))km/h)，请减速！"
+            print("⚠️ [探索] 超速警告开始，速度: \(String(format: "%.1f", speed)) km/h")
+            TerritoryLogger.shared.log("探索超速警告: \(String(format: "%.0f", speed))km/h，请减速", type: .warning)
+        } else {
+            // 持续超速，检查是否超过10秒
+            let overSpeedDuration = Date().timeIntervalSince(explorationOverSpeedStartTime!)
+            let remainingSeconds = Int(overSpeedToleranceSeconds - overSpeedDuration)
+
+            if remainingSeconds <= 0 {
+                // 超速超过10秒，标记探索失败
+                explorationSpeedWarning = "超速超过10秒，探索失败！"
+                print("❌ [探索] 超速超时，探索失败")
+                TerritoryLogger.shared.log("探索失败: 超速超过10秒", type: .error)
+                // 通知ExplorationManager停止探索
+                NotificationCenter.default.post(name: .explorationOverSpeedTimeout, object: nil)
+            } else {
+                explorationSpeedWarning = "速度过快！\(remainingSeconds)秒后停止探索"
+                print("⚠️ [探索] 超速倒计时: \(remainingSeconds)秒")
+            }
+        }
+    }
+
+    /// 清除探索超速状态
+    private func clearExplorationOverSpeed() {
+        if isExplorationOverSpeed {
+            isExplorationOverSpeed = false
+            explorationSpeedWarning = nil
+            explorationOverSpeedStartTime = nil
+            print("✅ [探索] 速度恢复正常")
+        }
+    }
+
     // MARK: - 私有方法（其他）
 
     /// 授权状态文本描述
@@ -696,4 +947,11 @@ extension LocationManager: CLLocationManagerDelegate {
             locationError = "定位失败: \(error.localizedDescription)"
         }
     }
+}
+
+// MARK: - 通知名称扩展
+
+extension Notification.Name {
+    /// 探索超速超时通知
+    static let explorationOverSpeedTimeout = Notification.Name("explorationOverSpeedTimeout")
 }

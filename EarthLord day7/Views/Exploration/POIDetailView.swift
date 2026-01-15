@@ -132,7 +132,7 @@ struct POIDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showExplorationResult) {
-            ExplorationResultView(result: MockExplorationData.mockExplorationResult)
+            ExplorationResultView(result: MockExplorationData.mockExplorationRewardResult)
         }
     }
 

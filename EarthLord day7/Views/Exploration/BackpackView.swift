@@ -12,14 +12,14 @@ struct BackpackView: View {
 
     // MARK: - 状态
 
-    /// 背包物品列表
-    @State private var inventoryItems: [InventoryItem] = MockExplorationData.mockInventoryItems
+    /// 背包管理器
+    @StateObject private var inventoryManager = InventoryManager.shared
 
     /// 搜索文字
     @State private var searchText: String = ""
 
     /// 当前选中的分类（nil 表示全部）
-    @State private var selectedCategory: ItemCategory? = nil
+    @State private var selectedCategory: String? = nil
 
     /// 动画显示的容量值
     @State private var animatedCapacity: Double = 0
@@ -34,7 +34,7 @@ struct BackpackView: View {
 
     /// 当前背包使用量（基于重量）
     private var currentCapacity: Double {
-        MockExplorationData.calculateTotalWeight(items: inventoryItems)
+        inventoryManager.totalWeight
     }
 
     /// 容量使用百分比
@@ -54,26 +54,21 @@ struct BackpackView: View {
     }
 
     /// 筛选后的物品列表
-    private var filteredItems: [InventoryItem] {
-        var result = inventoryItems
+    private var filteredItems: [DBInventoryItem] {
+        var result = inventoryManager.inventoryItems
 
         // 按分类筛选
         if let category = selectedCategory {
             result = result.filter { item in
-                if let definition = MockExplorationData.getItemDefinition(for: item.itemId) {
-                    return definition.category == category
-                }
-                return false
+                inventoryManager.getDefinition(for: item.itemId)?.category == category
             }
         }
 
         // 按搜索文字筛选
         if !searchText.isEmpty {
             result = result.filter { item in
-                if let definition = MockExplorationData.getItemDefinition(for: item.itemId) {
-                    return definition.name.localizedCaseInsensitiveContains(searchText)
-                }
-                return false
+                inventoryManager.getDefinition(for: item.itemId)?.name
+                    .localizedCaseInsensitiveContains(searchText) ?? false
             }
         }
 
@@ -88,32 +83,52 @@ struct BackpackView: View {
             ApocalypseTheme.background
                 .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // 容量状态卡
-                capacityCard
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
+            if inventoryManager.isLoading && inventoryManager.inventoryItems.isEmpty {
+                // 加载中
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.2)
+                    Text("加载背包...")
+                        .font(.system(size: 14))
+                        .foregroundColor(ApocalypseTheme.textSecondary)
+                }
+            } else {
+                VStack(spacing: 0) {
+                    // 容量状态卡
+                    capacityCard
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
 
-                // 搜索框
-                searchBar
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
+                    // 搜索框
+                    searchBar
+                        .padding(.horizontal, 16)
+                        .padding(.top, 16)
 
-                // 分类筛选
-                categoryFilter
-                    .padding(.top, 12)
+                    // 分类筛选
+                    categoryFilter
+                        .padding(.top, 12)
 
-                // 物品列表
-                itemListView
-                    .padding(.top, 12)
+                    // 物品列表
+                    itemListView
+                        .padding(.top, 12)
+                }
             }
         }
         .navigationTitle("背包")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            // 容量进度条动画
-            withAnimation(.easeOut(duration: 0.8)) {
-                animatedCapacity = currentCapacity
+            // 加载背包数据
+            Task {
+                await inventoryManager.loadInventory()
+                // 容量进度条动画
+                withAnimation(.easeOut(duration: 0.8)) {
+                    animatedCapacity = currentCapacity
+                }
+            }
+        }
+        .onChange(of: inventoryManager.totalWeight) { _, newValue in
+            withAnimation(.easeOut(duration: 0.5)) {
+                animatedCapacity = newValue
             }
         }
         .onChange(of: selectedCategory) { _, _ in
@@ -126,6 +141,9 @@ struct BackpackView: View {
                     showItems = true
                 }
             }
+        }
+        .refreshable {
+            await inventoryManager.loadInventory()
         }
     }
 
@@ -244,22 +262,10 @@ struct BackpackView: View {
                     title: "食物",
                     icon: "fork.knife",
                     color: .orange,
-                    isSelected: selectedCategory == .food
+                    isSelected: selectedCategory == "food"
                 ) {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedCategory = .food
-                    }
-                }
-
-                // 水
-                CategoryChip(
-                    title: "水",
-                    icon: "drop.fill",
-                    color: .cyan,
-                    isSelected: selectedCategory == .water
-                ) {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedCategory = .water
+                        selectedCategory = "food"
                     }
                 }
 
@@ -268,10 +274,10 @@ struct BackpackView: View {
                     title: "材料",
                     icon: "cube.fill",
                     color: .brown,
-                    isSelected: selectedCategory == .material
+                    isSelected: selectedCategory == "material"
                 ) {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedCategory = .material
+                        selectedCategory = "material"
                     }
                 }
 
@@ -280,10 +286,10 @@ struct BackpackView: View {
                     title: "工具",
                     icon: "wrench.and.screwdriver.fill",
                     color: .gray,
-                    isSelected: selectedCategory == .tool
+                    isSelected: selectedCategory == "tool"
                 ) {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedCategory = .tool
+                        selectedCategory = "tool"
                     }
                 }
 
@@ -292,10 +298,22 @@ struct BackpackView: View {
                     title: "医疗",
                     icon: "cross.case.fill",
                     color: .red,
-                    isSelected: selectedCategory == .medical
+                    isSelected: selectedCategory == "medical"
                 ) {
                     withAnimation(.easeInOut(duration: 0.2)) {
-                        selectedCategory = .medical
+                        selectedCategory = "medical"
+                    }
+                }
+
+                // 装备
+                CategoryChip(
+                    title: "装备",
+                    icon: "shield.fill",
+                    color: .purple,
+                    isSelected: selectedCategory == "equipment"
+                ) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedCategory = "equipment"
                     }
                 }
             }
@@ -314,8 +332,16 @@ struct BackpackView: View {
             } else {
                 LazyVStack(spacing: 10) {
                     ForEach(filteredItems) { item in
-                        if let definition = MockExplorationData.getItemDefinition(for: item.itemId) {
-                            ItemCard(item: item, definition: definition)
+                        if let definition = inventoryManager.getDefinition(for: item.itemId) {
+                            BackpackItemCard(
+                                item: item,
+                                definition: definition,
+                                onUse: {
+                                    Task {
+                                        await inventoryManager.useItem(itemId: item.id)
+                                    }
+                                }
+                            )
                         }
                     }
                 }
@@ -330,7 +356,7 @@ struct BackpackView: View {
     /// 空状态视图
     private var emptyStateView: some View {
         VStack(spacing: 16) {
-            if inventoryItems.isEmpty {
+            if inventoryManager.inventoryItems.isEmpty {
                 // 背包完全为空
                 Image(systemName: "bag")
                     .font(.system(size: 60))
@@ -358,7 +384,8 @@ struct BackpackView: View {
                     .foregroundColor(ApocalypseTheme.textMuted)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
         .padding(.horizontal, 40)
     }
 }
@@ -397,35 +424,33 @@ struct CategoryChip: View {
     }
 }
 
-// MARK: - 物品卡片组件
+// MARK: - 物品卡片组件（新版）
 
-/// 物品卡片
-struct ItemCard: View {
-    let item: InventoryItem
-    let definition: ItemDefinition
+/// 背包物品卡片
+struct BackpackItemCard: View {
+    let item: DBInventoryItem
+    let definition: DBItemDefinition
+    let onUse: () -> Void
 
     /// 分类颜色
     private var categoryColor: Color {
         switch definition.category {
-        case .water: return .cyan
-        case .food: return .orange
-        case .medical: return .red
-        case .material: return .brown
-        case .tool: return .gray
-        case .weapon: return .purple
-        case .clothing: return .blue
-        case .misc: return .secondary
+        case "food": return .orange
+        case "medical": return .red
+        case "tool": return .gray
+        case "material": return .brown
+        case "equipment": return .purple
+        default: return .secondary
         }
     }
 
     /// 稀有度颜色
     private var rarityColor: Color {
         switch definition.rarity {
-        case .common: return .gray
-        case .uncommon: return .green
-        case .rare: return .blue
-        case .epic: return .purple
-        case .legendary: return .orange
+        case "common": return .gray
+        case "rare": return .blue
+        case "epic": return .purple
+        default: return .gray
         }
     }
 
@@ -437,7 +462,7 @@ struct ItemCard: View {
                     .fill(categoryColor.opacity(0.15))
                     .frame(width: 48, height: 48)
 
-                Image(systemName: definition.categoryIconName)
+                Image(systemName: definition.icon)
                     .font(.system(size: 20))
                     .foregroundColor(categoryColor)
             }
@@ -455,32 +480,19 @@ struct ItemCard: View {
                         .foregroundColor(ApocalypseTheme.primary)
                 }
 
-                // 第二行：重量 + 品质 + 稀有度
+                // 第二行：重量 + 稀有度
                 HStack(spacing: 8) {
                     // 重量
                     HStack(spacing: 3) {
                         Image(systemName: "scalemass")
                             .font(.system(size: 10))
-                        Text(String(format: "%.1fkg", definition.weight * Double(item.quantity)))
+                        Text(String(format: "%.1fkg", (definition.weight ?? 0) * Double(item.quantity)))
                             .font(.system(size: 11))
                     }
                     .foregroundColor(ApocalypseTheme.textMuted)
 
-                    // 品质（如有）
-                    if let quality = item.quality {
-                        Text(quality.displayName)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(qualityColor(quality))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                Capsule()
-                                    .fill(qualityColor(quality).opacity(0.15))
-                            )
-                    }
-
                     // 稀有度标签
-                    Text(definition.rarity.displayName)
+                    Text(definition.rarityDisplayName)
                         .font(.system(size: 10, weight: .medium))
                         .foregroundColor(rarityColor)
                         .padding(.horizontal, 6)
@@ -498,7 +510,7 @@ struct ItemCard: View {
             VStack(spacing: 8) {
                 // 使用按钮
                 Button {
-                    handleUse()
+                    onUse()
                 } label: {
                     Text("使用")
                         .font(.system(size: 12, weight: .medium))
@@ -513,7 +525,7 @@ struct ItemCard: View {
 
                 // 存储按钮
                 Button {
-                    handleStore()
+                    // TODO: 实现存储逻辑
                 } label: {
                     Text("存储")
                         .font(.system(size: 12, weight: .medium))
@@ -532,32 +544,6 @@ struct ItemCard: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(ApocalypseTheme.cardBackground)
         )
-    }
-
-    /// 品质颜色
-    private func qualityColor(_ quality: ItemQuality) -> Color {
-        switch quality {
-        case .broken: return .gray
-        case .worn: return .brown
-        case .normal: return .secondary
-        case .good: return .green
-        case .excellent: return .blue
-        }
-    }
-
-    /// 使用物品
-    private func handleUse() {
-        print("使用物品: \(definition.name)")
-        print("  - 数量: \(item.quantity)")
-        print("  - 分类: \(definition.categoryDisplayName)")
-        // TODO: 实现使用逻辑
-    }
-
-    /// 存储物品
-    private func handleStore() {
-        print("存储物品: \(definition.name)")
-        print("  - 数量: \(item.quantity)")
-        // TODO: 实现存储逻辑
     }
 }
 

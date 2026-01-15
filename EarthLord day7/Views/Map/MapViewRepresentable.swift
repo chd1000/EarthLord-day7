@@ -37,6 +37,17 @@ struct MapViewRepresentable: UIViewRepresentable {
     /// 路径是否已闭合
     var isPathClosed: Bool
 
+    // MARK: - 绑定属性（探索轨迹）
+
+    /// 探索轨迹坐标数组（WGS-84 原始坐标）
+    @Binding var explorationPath: [CLLocationCoordinate2D]
+
+    /// 探索轨迹更新版本号
+    var explorationPathUpdateVersion: Int
+
+    /// 是否正在探索追踪
+    var isExplorationTracking: Bool
+
     // MARK: - 领地显示属性
 
     /// 已加载的领地列表
@@ -52,6 +63,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
     /// 闭环多边形的 overlay 标识符
     private static let polygonOverlayIdentifier = "closedPolygon"
+
+    /// 探索轨迹的 overlay 标识符
+    private static let explorationOverlayIdentifier = "explorationPath"
 
     /// 我的领地 overlay 标识符
     private static let myTerritoryIdentifier = "mine"
@@ -117,6 +131,9 @@ struct MapViewRepresentable: UIViewRepresentable {
         // 更新轨迹路径
         updateTrackingPath(on: mapView, context: context)
 
+        // 更新探索轨迹
+        updateExplorationPath(on: mapView, context: context)
+
         // 绘制已加载的领地
         drawTerritories(on: mapView, context: context)
     }
@@ -177,6 +194,44 @@ struct MapViewRepresentable: UIViewRepresentable {
         mapView.addOverlay(polyline)
 
         print("🛤️ 轨迹更新完成，共 \(trackingPath.count) 个点，闭环: \(isPathClosed)")
+    }
+
+    // MARK: - 探索轨迹渲染
+
+    /// 更新探索轨迹显示
+    private func updateExplorationPath(on mapView: MKMapView, context: Context) {
+        // 检查版本号是否变化（避免不必要的更新）
+        guard context.coordinator.lastExplorationPathVersion != explorationPathUpdateVersion else {
+            return
+        }
+        context.coordinator.lastExplorationPathVersion = explorationPathUpdateVersion
+
+        // 更新探索状态（用于渲染器判断）
+        context.coordinator.isExplorationTracking = isExplorationTracking
+
+        // 移除旧的探索轨迹 overlay
+        let oldOverlays = mapView.overlays.filter { overlay in
+            if let polyline = overlay as? MKPolyline {
+                return polyline.title == Self.explorationOverlayIdentifier
+            }
+            return false
+        }
+        mapView.removeOverlays(oldOverlays)
+
+        // 检查是否在探索中且有足够的点
+        guard isExplorationTracking, explorationPath.count >= 2 else {
+            return
+        }
+
+        // WGS-84 → GCJ-02 坐标转换
+        let gcj02Coordinates = CoordinateConverter.wgs84ToGcj02(explorationPath)
+
+        // 创建轨迹线
+        let polyline = MKPolyline(coordinates: gcj02Coordinates, count: gcj02Coordinates.count)
+        polyline.title = Self.explorationOverlayIdentifier
+        mapView.addOverlay(polyline)
+
+        print("🔍 探索轨迹更新，共 \(explorationPath.count) 个点")
     }
 
     // MARK: - 领地绘制
@@ -279,6 +334,12 @@ struct MapViewRepresentable: UIViewRepresentable {
         /// 上次绘制的领地数量（用于检测变化）
         var lastTerritoriesCount: Int = -1
 
+        /// 上次更新的探索轨迹版本号
+        var lastExplorationPathVersion: Int = -1
+
+        /// 是否正在探索追踪（用于渲染器判断）
+        var isExplorationTracking: Bool = false
+
         init(_ parent: MapViewRepresentable) {
             self.parent = parent
         }
@@ -354,15 +415,23 @@ struct MapViewRepresentable: UIViewRepresentable {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
 
-                // 根据闭环状态选择颜色
+                // 探索轨迹：橙色
+                if polyline.title == MapViewRepresentable.explorationOverlayIdentifier {
+                    renderer.strokeColor = UIColor.systemOrange
+                    renderer.lineWidth = 3.0
+                    renderer.lineCap = .round
+                    renderer.lineJoin = .round
+                    renderer.alpha = 0.9
+                    return renderer
+                }
+
+                // 圈地轨迹：根据闭环状态选择颜色
                 if isPathClosed {
                     // 已闭环：绿色轨迹
                     renderer.strokeColor = UIColor.systemGreen
-                    print("🎨 创建轨迹渲染器: 绿色 (已闭环), 4pt")
                 } else {
                     // 未闭环：青色轨迹
                     renderer.strokeColor = UIColor.systemCyan
-                    print("🎨 创建轨迹渲染器: 青色 (未闭环), 4pt")
                 }
 
                 renderer.lineWidth = 4.0
@@ -414,6 +483,9 @@ struct MapViewRepresentable: UIViewRepresentable {
         pathUpdateVersion: 0,
         isTracking: false,
         isPathClosed: false,
+        explorationPath: .constant([]),
+        explorationPathUpdateVersion: 0,
+        isExplorationTracking: false,
         territories: [],
         currentUserId: nil
     )
