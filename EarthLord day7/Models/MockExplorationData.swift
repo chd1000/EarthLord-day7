@@ -29,6 +29,21 @@ enum POIType: String, Codable {
     case house = "house"                // 民居
     case police = "police"              // 警察局
     case military = "military"          // 军事设施
+
+    /// 类型显示名称
+    var displayName: String {
+        switch self {
+        case .supermarket: return "超市"
+        case .hospital: return "医院"
+        case .gasStation: return "加油站"
+        case .pharmacy: return "药店"
+        case .factory: return "工厂"
+        case .warehouse: return "仓库"
+        case .house: return "民居"
+        case .police: return "警察局"
+        case .military: return "军事设施"
+        }
+    }
 }
 
 // MARK: - POI 数据模型
@@ -40,9 +55,13 @@ struct POI: Identifiable, Codable {
     let type: POIType                   // 地点类型
     let coordinate: Coordinate          // 坐标
     var status: POIDiscoveryStatus      // 发现状态
-    let hasLoot: Bool                   // 是否有物资
+    var hasLoot: Bool                   // 是否有物资
     let dangerLevel: Int                // 危险等级（1-5）
     let description: String             // 描述
+
+    // MARK: - POI搜刮系统扩展字段
+    var distanceFromUser: Double?       // 与玩家的实时距离（米）
+    var lastLootedAt: Date?             // 上次搜刮时间
 
     /// 坐标结构（用于 Codable）
     struct Coordinate: Codable {
@@ -52,6 +71,11 @@ struct POI: Identifiable, Codable {
         var clLocationCoordinate: CLLocationCoordinate2D {
             CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
         }
+    }
+
+    /// 是否可以搜刮
+    var canScavenge: Bool {
+        hasLoot && status != .looted
     }
 
     /// 类型中文名
@@ -90,6 +114,48 @@ struct POI: Identifiable, Codable {
         case .house: return "house.fill"
         case .police: return "shield.fill"
         case .military: return "airplane"
+        }
+    }
+}
+
+// MARK: - 搜刮结果模型
+
+/// 搜刮结果
+struct ScavengeResult: Identifiable {
+    let id: UUID
+    let poiId: UUID
+    let poiName: String
+    let poiType: POIType
+    let items: [ScavengedItem]
+    let timestamp: Date
+
+    init(poiId: UUID, poiName: String, poiType: POIType, items: [ScavengedItem]) {
+        self.id = UUID()
+        self.poiId = poiId
+        self.poiName = poiName
+        self.poiType = poiType
+        self.items = items
+        self.timestamp = Date()
+    }
+
+    /// 搜刮获得的物品
+    struct ScavengedItem: Identifiable {
+        let id: UUID
+        let itemId: String
+        let name: String
+        let quantity: Int
+        let rarity: String
+        let icon: String
+        let category: String
+
+        init(itemId: String, name: String, quantity: Int, rarity: String, icon: String, category: String) {
+            self.id = UUID()
+            self.itemId = itemId
+            self.name = name
+            self.quantity = quantity
+            self.rarity = rarity
+            self.icon = icon
+            self.category = category
         }
     }
 }

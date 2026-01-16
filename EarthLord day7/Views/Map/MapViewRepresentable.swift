@@ -56,6 +56,14 @@ struct MapViewRepresentable: UIViewRepresentable {
     /// 当前用户 ID（用于区分我的领地和他人领地）
     var currentUserId: String?
 
+    // MARK: - POI显示属性
+
+    /// 附近的POI列表
+    var nearbyPOIs: [POI]
+
+    /// POI更新版本号（用于触发更新）
+    var poiUpdateVersion: Int
+
     // MARK: - 常量
 
     /// 轨迹线的 overlay 标识符
@@ -136,6 +144,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         // 绘制已加载的领地
         drawTerritories(on: mapView, context: context)
+
+        // 更新POI标注
+        updatePOIAnnotations(on: mapView, context: context)
     }
 
     /// 创建 Coordinator
@@ -289,6 +300,40 @@ struct MapViewRepresentable: UIViewRepresentable {
         print("🗺️ 绘制了 \(territories.count) 个领地")
     }
 
+    // MARK: - POI标注
+
+    /// 更新POI标注
+    private func updatePOIAnnotations(on mapView: MKMapView, context: Context) {
+        // 检查版本号是否变化
+        guard context.coordinator.lastPOIVersion != poiUpdateVersion else {
+            return
+        }
+        context.coordinator.lastPOIVersion = poiUpdateVersion
+
+        // 移除旧的POI标注
+        let oldAnnotations = mapView.annotations.compactMap { $0 as? POIAnnotation }
+        mapView.removeAnnotations(oldAnnotations)
+
+        // 如果没有POI，直接返回
+        guard !nearbyPOIs.isEmpty else {
+            print("📍 [POI] 没有POI需要显示")
+            return
+        }
+
+        // 添加新的POI标注
+        // 注意：MKLocalSearch返回的坐标在中国已经是GCJ-02，无需再次转换
+        for poi in nearbyPOIs {
+            let coordinate = CLLocationCoordinate2D(
+                latitude: poi.coordinate.latitude,
+                longitude: poi.coordinate.longitude
+            )
+            let annotation = POIAnnotation(poi: poi, coordinate: coordinate)
+            mapView.addAnnotation(annotation)
+        }
+
+        print("📍 [POI] 显示了 \(nearbyPOIs.count) 个POI标注")
+    }
+
     // MARK: - 末世滤镜
 
     /// 应用末世废土风格滤镜
@@ -339,6 +384,9 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         /// 是否正在探索追踪（用于渲染器判断）
         var isExplorationTracking: Bool = false
+
+        /// 上次更新的POI版本号
+        var lastPOIVersion: Int = -1
 
         init(_ parent: MapViewRepresentable) {
             self.parent = parent
@@ -453,6 +501,66 @@ struct MapViewRepresentable: UIViewRepresentable {
             // 可以在这里处理用户手动拖动地图后的逻辑
         }
 
+        /// ⭐ POI标注视图
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            // 忽略用户位置标注
+            guard !(annotation is MKUserLocation) else { return nil }
+
+            // 处理POI标注
+            if let poiAnnotation = annotation as? POIAnnotation {
+                let identifier = "POIAnnotation"
+                var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
+
+                if annotationView == nil {
+                    annotationView = MKMarkerAnnotationView(annotation: poiAnnotation, reuseIdentifier: identifier)
+                    annotationView?.canShowCallout = true
+                } else {
+                    annotationView?.annotation = poiAnnotation
+                }
+
+                // 根据POI类型设置颜色和图标
+                let (color, glyph) = getPOIAppearance(for: poiAnnotation.poi.type)
+                annotationView?.markerTintColor = color
+                annotationView?.glyphImage = UIImage(systemName: glyph)
+
+                // 根据状态设置透明度（已搜刮变灰）
+                if poiAnnotation.poi.status == .looted || !poiAnnotation.poi.canScavenge {
+                    annotationView?.alpha = 0.5
+                    annotationView?.markerTintColor = .gray
+                } else {
+                    annotationView?.alpha = 1.0
+                }
+
+                return annotationView
+            }
+
+            return nil
+        }
+
+        /// 获取POI外观（颜色和图标）
+        private func getPOIAppearance(for type: POIType) -> (UIColor, String) {
+            switch type {
+            case .hospital:
+                return (.systemRed, "cross.case.fill")
+            case .pharmacy:
+                return (.systemPurple, "pills.fill")
+            case .supermarket:
+                return (.systemGreen, "cart.fill")
+            case .gasStation:
+                return (.systemOrange, "fuelpump.fill")
+            case .police:
+                return (.systemBlue, "shield.fill")
+            case .warehouse:
+                return (.systemBrown, "shippingbox.fill")
+            case .factory:
+                return (.systemGray, "building.2.fill")
+            case .house:
+                return (.systemTeal, "house.fill")
+            case .military:
+                return (.systemGreen, "airplane")
+            }
+        }
+
         /// 地图加载完成
         func mapViewDidFinishLoadingMap(_ mapView: MKMapView) {
             print("🗺️ 地图加载完成")
@@ -472,6 +580,37 @@ struct MapViewRepresentable: UIViewRepresentable {
     }
 }
 
+// MARK: - POI标注类
+
+/// POI地图标注
+class POIAnnotation: NSObject, MKAnnotation {
+
+    /// 关联的POI数据
+    let poi: POI
+
+    /// 标注坐标（GCJ-02坐标系）
+    var coordinate: CLLocationCoordinate2D
+
+    /// 标注标题
+    var title: String? {
+        poi.name
+    }
+
+    /// 标注副标题
+    var subtitle: String? {
+        if let distance = poi.distanceFromUser {
+            return "\(poi.type.displayName) · \(Int(distance))米"
+        }
+        return poi.type.displayName
+    }
+
+    init(poi: POI, coordinate: CLLocationCoordinate2D) {
+        self.poi = poi
+        self.coordinate = coordinate
+        super.init()
+    }
+}
+
 // MARK: - Preview
 
 #Preview {
@@ -487,6 +626,8 @@ struct MapViewRepresentable: UIViewRepresentable {
         explorationPathUpdateVersion: 0,
         isExplorationTracking: false,
         territories: [],
-        currentUserId: nil
+        currentUserId: nil,
+        nearbyPOIs: [],
+        poiUpdateVersion: 0
     )
 }

@@ -217,6 +217,37 @@ struct MapTabView: View {
         } message: {
             Text(explorationManager.failureReason ?? "未知原因")
         }
+        // POI接近弹窗（从底部滑出）
+        .sheet(isPresented: $explorationManager.showProximityPopup) {
+            if let poi = explorationManager.currentProximityPOI {
+                POIProximityPopup(
+                    poi: poi,
+                    isScavenging: explorationManager.isScavenging,
+                    onScavenge: {
+                        Task {
+                            await explorationManager.performScavenge(poi: poi)
+                        }
+                    },
+                    onDismiss: {
+                        explorationManager.dismissProximityPopup()
+                    }
+                )
+                .presentationDetents([.height(320)])
+                .presentationDragIndicator(.visible)
+            }
+        }
+        // 搜刮结果弹窗
+        .sheet(isPresented: $explorationManager.showScavengeResult) {
+            if let result = explorationManager.scavengeResult {
+                ScavengeResultView(
+                    result: result,
+                    onDismiss: {
+                        explorationManager.dismissScavengeResult()
+                    }
+                )
+                .presentationDetents([.medium])
+            }
+        }
     }
 
     // MARK: - 地图视图
@@ -235,7 +266,10 @@ struct MapTabView: View {
             explorationPathUpdateVersion: locationManager.explorationPathUpdateVersion,
             isExplorationTracking: locationManager.isExplorationTracking,
             territories: territories,
-            currentUserId: authManager.currentUser?.id.uuidString
+            currentUserId: authManager.currentUser?.id.uuidString,
+            // POI参数
+            nearbyPOIs: explorationManager.nearbyPOIs,
+            poiUpdateVersion: explorationManager.poiUpdateVersion
         )
         .ignoresSafeArea(edges: .top)  // 只忽略顶部安全区域，保留底部 Tab 栏
     }

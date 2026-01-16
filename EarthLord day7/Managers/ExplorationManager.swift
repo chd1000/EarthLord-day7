@@ -10,6 +10,7 @@ import Foundation
 import CoreLocation
 import Combine
 import Supabase
+import UIKit
 
 /// 探索管理器
 @MainActor
@@ -51,6 +52,29 @@ class ExplorationManager: ObservableObject {
     /// 失败原因
     @Published var failureReason: String?
 
+    // MARK: - POI搜刮相关状态
+
+    /// 附近的POI列表
+    @Published var nearbyPOIs: [POI] = []
+
+    /// 当前接近的POI（触发弹窗）
+    @Published var currentProximityPOI: POI?
+
+    /// 是否显示接近弹窗
+    @Published var showProximityPopup: Bool = false
+
+    /// 搜刮结果
+    @Published var scavengeResult: ScavengeResult?
+
+    /// 是否显示搜刮结果
+    @Published var showScavengeResult: Bool = false
+
+    /// 是否正在搜刮
+    @Published var isScavenging: Bool = false
+
+    /// POI更新版本（用于触发地图刷新）
+    @Published var poiUpdateVersion: Int = 0
+
     // MARK: - 私有属性
 
     private var locationManager = LocationManager.shared
@@ -60,6 +84,18 @@ class ExplorationManager: ObservableObject {
 
     /// 超速通知监听器
     private var overSpeedObserver: NSObjectProtocol?
+
+    /// POI接近检测定时器
+    private var proximityCheckTimer: Timer?
+
+    /// 接近检测间隔（秒）
+    private let proximityCheckInterval: TimeInterval = 3.0
+
+    /// 搜刮触发距离（米）
+    private let scavengeRadius: Double = 50.0
+
+    /// POI搜索管理器
+    private var poiSearchManager = POISearchManager.shared
 
     // MARK: - 初始化
 
@@ -133,6 +169,13 @@ class ExplorationManager: ObservableObject {
 
             print("🔍 [探索] 开始探索，会话ID: \(session.id)")
             TerritoryLogger.shared.log("探索会话开始", type: .success)
+
+            // 7. 搜索附近POI
+            await searchNearbyPOIs()
+
+            // 8. 启动POI接近检测
+            startProximityMonitoring()
+
             return true
 
         } catch {
@@ -158,6 +201,10 @@ class ExplorationManager: ObservableObject {
             NotificationCenter.default.removeObserver(observer)
             overSpeedObserver = nil
         }
+
+        // 停止POI接近检测
+        stopProximityMonitoring()
+        clearPOIs()
 
         // 1. 停止 GPS 追踪
         let (distance, duration) = locationManager.stopExplorationTracking()
@@ -246,6 +293,10 @@ class ExplorationManager: ObservableObject {
             overSpeedObserver = nil
         }
 
+        // 停止POI接近检测
+        stopProximityMonitoring()
+        clearPOIs()
+
         let _ = locationManager.stopExplorationTracking()
         stopDurationTimer()
 
@@ -288,6 +339,234 @@ class ExplorationManager: ObservableObject {
         failureReason = nil
     }
 
+    // MARK: - POI搜刮功能
+
+    /// 搜索附近POI
+    func searchNearbyPOIs() async {
+        guard let currentLocation = locationManager.userLocation else {
+            print("⚠️ [POI] 无法获取当前位置")
+            TerritoryLogger.shared.log("无法获取位置", type: .error)
+            return
+        }
+
+        print("🔍 [POI] 开始搜索附近POI，位置: (\(currentLocation.latitude), \(currentLocation.longitude))")
+        TerritoryLogger.shared.log("正在搜索附近地点...", type: .info)
+
+        let pois = await poiSearchManager.searchNearbyPOIs(center: currentLocation)
+
+        nearbyPOIs = pois
+        poiUpdateVersion += 1
+
+        if pois.isEmpty {
+            print("⚠️ [POI] 附近未找到可探索地点")
+            TerritoryLogger.shared.log("附近未发现可探索地点", type: .warning)
+        } else {
+            print("🔍 [POI] 共加载 \(pois.count) 个POI")
+            TerritoryLogger.shared.log("发现 \(pois.count) 个可探索地点", type: .success)
+        }
+    }
+
+    /// 启动POI接近检测
+    func startProximityMonitoring() {
+        print("🔍 [POI] 启动接近检测")
+
+        proximityCheckTimer = Timer.scheduledTimer(withTimeInterval: proximityCheckInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.checkPOIProximity()
+            }
+        }
+    }
+
+    /// 停止POI接近检测
+    func stopProximityMonitoring() {
+        proximityCheckTimer?.invalidate()
+        proximityCheckTimer = nil
+        print("🔍 [POI] 停止接近检测")
+    }
+
+    /// 清除POI数据
+    func clearPOIs() {
+        nearbyPOIs.removeAll()
+        currentProximityPOI = nil
+        showProximityPopup = false
+        poiSearchManager.clearSearchResults()
+        poiUpdateVersion += 1
+        print("🔍 [POI] 已清除POI数据")
+    }
+
+    /// 检查是否接近POI
+    private func checkPOIProximity() {
+        guard let userLocation = locationManager.userLocation else { return }
+
+        // 用户位置是WGS-84，POI坐标是GCJ-02，需要转换用户位置到GCJ-02再计算距离
+        let userGCJ02 = CoordinateConverter.wgs84ToGcj02([userLocation]).first ?? userLocation
+        let userCLLocation = CLLocation(latitude: userGCJ02.latitude, longitude: userGCJ02.longitude)
+
+        // 更新所有POI的距离
+        for i in 0..<nearbyPOIs.count {
+            let poiLocation = CLLocation(
+                latitude: nearbyPOIs[i].coordinate.latitude,
+                longitude: nearbyPOIs[i].coordinate.longitude
+            )
+            nearbyPOIs[i].distanceFromUser = userCLLocation.distance(from: poiLocation)
+        }
+
+        // 查找最近的可搜刮POI
+        let scavengablePOIs = nearbyPOIs.filter { poi in
+            guard let distance = poi.distanceFromUser else { return false }
+            return distance <= scavengeRadius && poi.canScavenge
+        }
+
+        // 如果有可搜刮的POI，选择最近的一个
+        if let closestPOI = scavengablePOIs.min(by: { ($0.distanceFromUser ?? .infinity) < ($1.distanceFromUser ?? .infinity) }) {
+            // 只有当POI变化时才更新
+            if currentProximityPOI?.id != closestPOI.id {
+                currentProximityPOI = closestPOI
+                showProximityPopup = true
+
+                // 震动提示
+                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                impactFeedback.impactOccurred()
+
+                print("🔍 [POI] 进入搜刮范围: \(closestPOI.name)")
+                TerritoryLogger.shared.log("发现可搜刮地点: \(closestPOI.name)", type: .warning)
+            }
+        } else {
+            // 离开搜刮范围
+            if currentProximityPOI != nil {
+                print("🔍 [POI] 离开搜刮范围")
+                currentProximityPOI = nil
+                showProximityPopup = false
+            }
+        }
+    }
+
+    /// 关闭接近弹窗
+    func dismissProximityPopup() {
+        showProximityPopup = false
+    }
+
+    /// 执行搜刮
+    func performScavenge(poi: POI) async {
+        guard poi.canScavenge else {
+            print("⚠️ [POI] 该地点无法搜刮")
+            return
+        }
+
+        isScavenging = true
+        showProximityPopup = false
+
+        print("🔍 [POI] 开始搜刮: \(poi.name)")
+        TerritoryLogger.shared.log("正在搜刮: \(poi.name)", type: .info)
+
+        // 模拟搜刮延迟
+        try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5秒
+
+        // 生成奖励
+        let rewards = generateScavengeRewards(poi: poi)
+
+        // 创建搜刮结果
+        let result = ScavengeResult(
+            poiId: poi.id,
+            poiName: poi.name,
+            poiType: poi.type,
+            items: rewards
+        )
+
+        // 将物品添加到背包
+        if !rewards.isEmpty {
+            let itemsToAdd = rewards.map { (itemId: $0.itemId, quantity: $0.quantity) }
+            await inventoryManager.addItems(itemsToAdd)
+        }
+
+        // 标记POI为已搜刮
+        if let index = nearbyPOIs.firstIndex(where: { $0.id == poi.id }) {
+            nearbyPOIs[index].status = .looted
+            nearbyPOIs[index].hasLoot = false
+            nearbyPOIs[index].lastLootedAt = Date()
+        }
+
+        scavengeResult = result
+        isScavenging = false
+        showScavengeResult = true
+        currentProximityPOI = nil
+        poiUpdateVersion += 1
+
+        print("🔍 [POI] 搜刮完成，获得 \(rewards.count) 种物品")
+        TerritoryLogger.shared.log("搜刮成功: 获得 \(rewards.count) 种物品", type: .success)
+    }
+
+    /// 生成搜刮奖励
+    private func generateScavengeRewards(poi: POI) -> [ScavengeResult.ScavengedItem] {
+        // 根据POI类型和危险等级确定奖励
+        let itemCount = Int.random(in: 1...3)
+        var rewards: [ScavengeResult.ScavengedItem] = []
+
+        // 根据POI类型调整物品类别概率
+        let categoryProbabilities = getCategoryProbabilities(for: poi.type)
+
+        for _ in 0..<itemCount {
+            // 选择物品类别
+            let category = selectCategory(probabilities: categoryProbabilities)
+
+            // 从该类别中随机选择物品
+            let itemsOfCategory = itemDefinitionsCache.values.filter { $0.category == category }
+            guard let selectedItem = itemsOfCategory.randomElement() else { continue }
+
+            let quantity = Int.random(in: 1...2)
+
+            rewards.append(ScavengeResult.ScavengedItem(
+                itemId: selectedItem.id,
+                name: selectedItem.name,
+                quantity: quantity,
+                rarity: selectedItem.rarity,
+                icon: selectedItem.icon,
+                category: selectedItem.category
+            ))
+        }
+
+        return rewards
+    }
+
+    /// 根据POI类型获取物品类别概率
+    private func getCategoryProbabilities(for poiType: POIType) -> [String: Double] {
+        switch poiType {
+        case .hospital, .pharmacy:
+            return ["medical": 0.6, "food": 0.2, "tool": 0.15, "material": 0.05]
+        case .supermarket:
+            return ["food": 0.5, "medical": 0.2, "tool": 0.2, "material": 0.1]
+        case .gasStation:
+            return ["tool": 0.4, "material": 0.3, "food": 0.2, "medical": 0.1]
+        case .police, .military:
+            return ["tool": 0.5, "material": 0.3, "medical": 0.15, "food": 0.05]
+        case .warehouse, .factory:
+            return ["material": 0.5, "tool": 0.3, "food": 0.1, "medical": 0.1]
+        case .house:
+            return ["food": 0.4, "medical": 0.2, "tool": 0.2, "material": 0.2]
+        }
+    }
+
+    /// 根据概率选择物品类别
+    private func selectCategory(probabilities: [String: Double]) -> String {
+        let random = Double.random(in: 0..<1)
+        var cumulative: Double = 0
+
+        for (category, prob) in probabilities {
+            cumulative += prob
+            if random < cumulative {
+                return category
+            }
+        }
+
+        return "food" // 默认
+    }
+
+    /// 关闭搜刮结果弹窗
+    func dismissScavengeResult() {
+        showScavengeResult = false
+        scavengeResult = nil
+    }
+
     // MARK: - 超速失败处理
 
     /// 处理超速失败
@@ -301,6 +580,10 @@ class ExplorationManager: ObservableObject {
             NotificationCenter.default.removeObserver(observer)
             overSpeedObserver = nil
         }
+
+        // 停止POI接近检测
+        stopProximityMonitoring()
+        clearPOIs()
 
         // 停止GPS追踪
         let _ = locationManager.stopExplorationTracking()
