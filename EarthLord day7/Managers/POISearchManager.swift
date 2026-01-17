@@ -87,9 +87,11 @@ class POISearchManager: ObservableObject {
     // MARK: - 公开方法
 
     /// 搜索附近POI
-    /// - Parameter center: 搜索中心点
+    /// - Parameters:
+    ///   - center: 搜索中心点
+    ///   - maxCount: 最大返回POI数量（默认20个）
     /// - Returns: 搜索到的POI数组
-    func searchNearbyPOIs(center: CLLocationCoordinate2D) async -> [POI] {
+    func searchNearbyPOIs(center: CLLocationCoordinate2D, maxCount: Int = 20) async -> [POI] {
         // 检查搜索冷却
         if let lastTime = lastSearchTime,
            Date().timeIntervalSince(lastTime) < searchCooldown {
@@ -149,8 +151,8 @@ class POISearchManager: ObservableObject {
         // 按距离排序
         let sortedPOIs = sortByDistance(uniquePOIs, from: center)
 
-        // 限制数量（最多20个，避免地图过于拥挤）
-        let limitedPOIs = Array(sortedPOIs.prefix(20))
+        // 限制数量（根据玩家密度动态调整）
+        let limitedPOIs = Array(sortedPOIs.prefix(maxCount))
 
         // 更新状态
         searchedPOIs = limitedPOIs

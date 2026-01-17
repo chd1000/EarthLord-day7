@@ -79,6 +79,7 @@ class ExplorationManager: ObservableObject {
 
     private var locationManager = LocationManager.shared
     private var inventoryManager = InventoryManager.shared
+    private var playerLocationManager = PlayerLocationManager.shared
     private var durationTimer: Timer?
     private var itemDefinitionsCache: [String: DBItemDefinition] = [:]
 
@@ -342,6 +343,7 @@ class ExplorationManager: ObservableObject {
     // MARK: - POI搜刮功能
 
     /// 搜索附近POI
+    /// 根据附近玩家密度动态调整POI显示数量
     func searchNearbyPOIs() async {
         guard let currentLocation = locationManager.userLocation else {
             print("⚠️ [POI] 无法获取当前位置")
@@ -352,7 +354,23 @@ class ExplorationManager: ObservableObject {
         print("🔍 [POI] 开始搜索附近POI，位置: (\(currentLocation.latitude), \(currentLocation.longitude))")
         TerritoryLogger.shared.log("正在搜索附近地点...", type: .info)
 
-        let pois = await poiSearchManager.searchNearbyPOIs(center: currentLocation)
+        // 1. 先上报自己位置
+        await playerLocationManager.reportLocation()
+
+        // 2. 查询附近玩家数量
+        let nearbyCount = await playerLocationManager.queryNearbyPlayers()
+        let densityLevel = PlayerDensityLevel.from(playerCount: nearbyCount)
+
+        // 3. 根据密度决定POI数量
+        let maxPOI = densityLevel.maxPOICount
+
+        print("🔍 [POI] 附近\(nearbyCount)人，密度等级: \(densityLevel.displayName)，显示\(maxPOI)个POI")
+
+        // 显示玩家密度信息
+        TerritoryLogger.shared.log("附近玩家: \(nearbyCount) 人, 密度: \(densityLevel.displayName)", type: .info)
+
+        // 4. 搜索POI
+        let pois = await poiSearchManager.searchNearbyPOIs(center: currentLocation, maxCount: maxPOI)
 
         nearbyPOIs = pois
         poiUpdateVersion += 1

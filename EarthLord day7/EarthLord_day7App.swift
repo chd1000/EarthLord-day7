@@ -7,6 +7,7 @@
 
 import SwiftUI
 import GoogleSignIn
+import UIKit
 
 @main
 struct EarthLord_day7App: App {
@@ -22,6 +23,38 @@ struct EarthLord_day7App: App {
         print("🔵 [App] 正在配置 Google Sign-In...")
         GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: googleClientID)
         print("✅ [App] Google Sign-In 配置完成")
+
+        // App生命周期监听 - 玩家位置管理
+        setupAppLifecycleObservers()
+    }
+
+    /// 设置App生命周期监听器
+    private func setupAppLifecycleObservers() {
+        // App进入后台 - 标记玩家离线
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("🔵 [App] 进入后台，标记玩家离线")
+            Task {
+                await PlayerLocationManager.shared.setOffline()
+            }
+        }
+
+        // App回到前台 - 上报玩家位置
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            print("🔵 [App] 回到前台，上报玩家位置")
+            Task {
+                await PlayerLocationManager.shared.setOnlineAndReport()
+            }
+        }
+
+        print("✅ [App] 生命周期监听器设置完成")
     }
 
     var body: some Scene {
