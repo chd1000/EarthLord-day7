@@ -242,6 +242,102 @@ struct DBExplorationSessionUpdate: Codable {
     }
 }
 
+// MARK: - AI 背包物品（映射 ai_inventory_items 表）
+
+/// AI 生成的背包物品（数据库模型）
+struct DBAIInventoryItem: Codable, Identifiable {
+    let id: UUID
+    let userId: UUID
+    let name: String
+    let category: String
+    let rarity: String
+    let icon: String
+    let story: String?
+    let quantity: Int
+    let poiName: String?
+    let obtainedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case name, category, rarity, icon, story, quantity
+        case poiName = "poi_name"
+        case obtainedAt = "obtained_at"
+    }
+
+    /// 稀有度显示名称
+    var rarityDisplayName: String {
+        switch rarity {
+        case "common": return "普通"
+        case "uncommon": return "少见"
+        case "rare": return "稀有"
+        case "epic": return "史诗"
+        case "legendary": return "传说"
+        default: return rarity
+        }
+    }
+
+    /// 分类显示名称
+    var categoryDisplayName: String {
+        switch category {
+        case "food": return "食物"
+        case "medical": return "医疗"
+        case "tool": return "工具"
+        case "material": return "材料"
+        case "equipment": return "装备"
+        case "water": return "水类"
+        case "weapon": return "武器"
+        default: return category
+        }
+    }
+}
+
+/// AI 物品插入模型
+struct DBAIInventoryItemInsert: Codable {
+    let userId: UUID
+    let name: String
+    let category: String
+    let rarity: String
+    let icon: String
+    let story: String?
+    let quantity: Int
+    let poiName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+        case name, category, rarity, icon, story, quantity
+        case poiName = "poi_name"
+    }
+}
+
+/// AI 生成的物品（API 响应模型）
+struct AIGeneratedItem: Codable {
+    let name: String
+    let category: String
+    let rarity: String
+    let icon: String
+    let story: String
+
+    /// 稀有度显示名称
+    var rarityDisplayName: String {
+        switch rarity {
+        case "common": return "普通"
+        case "uncommon": return "少见"
+        case "rare": return "稀有"
+        case "epic": return "史诗"
+        case "legendary": return "传说"
+        default: return rarity
+        }
+    }
+}
+
+/// AI 物品生成 API 响应
+struct AIItemGenerationResponse: Codable {
+    let success: Bool
+    let items: [AIGeneratedItem]?
+    let error: String?
+}
+
 // MARK: - 探索结果（用于 UI 显示）
 
 /// 探索奖励结果

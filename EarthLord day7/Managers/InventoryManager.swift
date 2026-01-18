@@ -20,8 +20,11 @@ class InventoryManager: ObservableObject {
 
     // MARK: - 发布的状态
 
-    /// 背包物品列表
+    /// 背包物品列表（普通物品）
     @Published var inventoryItems: [DBInventoryItem] = []
+
+    /// AI 背包物品列表
+    @Published var aiInventoryItems: [DBAIInventoryItem] = []
 
     /// 物品定义缓存
     @Published var itemDefinitions: [String: DBItemDefinition] = [:]
@@ -57,7 +60,7 @@ class InventoryManager: ObservableObject {
         }
     }
 
-    /// 加载用户背包
+    /// 加载用户背包（包括普通物品和 AI 物品）
     func loadInventory() async {
         guard let userId = await getCurrentUserId() else {
             errorMessage = "未登录"
@@ -74,6 +77,7 @@ class InventoryManager: ObservableObject {
         }
 
         do {
+            // 加载普通物品
             let items: [DBInventoryItem] = try await supabase
                 .from("inventory_items")
                 .select()
@@ -83,13 +87,39 @@ class InventoryManager: ObservableObject {
                 .value
 
             inventoryItems = items
-            print("📦 加载了 \(items.count) 个背包物品")
+            print("📦 加载了 \(items.count) 个普通背包物品")
+
+            // 同时加载 AI 物品
+            await loadAIInventory()
         } catch {
             errorMessage = "加载背包失败"
             print("❌ 加载背包失败: \(error)")
         }
 
         isLoading = false
+    }
+
+    /// 加载 AI 生成的物品
+    func loadAIInventory() async {
+        guard let userId = await getCurrentUserId() else {
+            print("❌ 加载AI背包失败：未登录")
+            return
+        }
+
+        do {
+            let items: [DBAIInventoryItem] = try await supabase
+                .from("ai_inventory_items")
+                .select()
+                .eq("user_id", value: userId.uuidString)
+                .order("obtained_at", ascending: false)
+                .execute()
+                .value
+
+            aiInventoryItems = items
+            print("📦 加载了 \(items.count) 个 AI 背包物品")
+        } catch {
+            print("❌ 加载AI背包失败: \(error)")
+        }
     }
 
     /// 添加物品到背包（支持堆叠）
@@ -196,7 +226,7 @@ class InventoryManager: ObservableObject {
         return itemDefinitions[itemId]
     }
 
-    /// 计算背包总重量
+    /// 计算背包总重量（普通物品）
     var totalWeight: Double {
         inventoryItems.reduce(0) { total, item in
             let weight = itemDefinitions[item.itemId]?.weight ?? 0
@@ -204,14 +234,67 @@ class InventoryManager: ObservableObject {
         }
     }
 
-    /// 物品总数（不同种类数）
+    /// 物品总数（不同种类数，包括 AI 物品）
     var itemTypeCount: Int {
-        inventoryItems.count
+        inventoryItems.count + aiInventoryItems.count
     }
 
-    /// 物品总数量（所有数量之和）
+    /// 物品总数量（所有数量之和，包括 AI 物品）
     var totalItemCount: Int {
-        inventoryItems.reduce(0) { $0 + $1.quantity }
+        let normalCount = inventoryItems.reduce(0) { $0 + $1.quantity }
+        let aiCount = aiInventoryItems.reduce(0) { $0 + $1.quantity }
+        return normalCount + aiCount
+    }
+
+    /// AI 物品数量
+    var aiItemCount: Int {
+        aiInventoryItems.count
+    }
+
+    /// 使用 AI 物品（减少数量或删除）
+    func useAIItem(itemId: UUID, amount: Int = 1) async -> Bool {
+        guard let index = aiInventoryItems.firstIndex(where: { $0.id == itemId }) else {
+            print("❌ AI物品不存在")
+            return false
+        }
+
+        let item = aiInventoryItems[index]
+        let newQuantity = item.quantity - amount
+
+        if newQuantity <= 0 {
+            // 删除物品
+            do {
+                try await supabase
+                    .from("ai_inventory_items")
+                    .delete()
+                    .eq("id", value: itemId.uuidString)
+                    .execute()
+
+                aiInventoryItems.remove(at: index)
+                print("📦 AI物品用尽删除: \(item.name)")
+                return true
+            } catch {
+                print("❌ 删除AI物品失败: \(error)")
+                return false
+            }
+        } else {
+            // 更新数量
+            do {
+                try await supabase
+                    .from("ai_inventory_items")
+                    .update(["quantity": newQuantity])
+                    .eq("id", value: itemId.uuidString)
+                    .execute()
+
+                // 需要重新加载因为 DBAIInventoryItem 的 quantity 是 let
+                await loadAIInventory()
+                print("📦 使用AI物品: \(item.name) -\(amount) = \(newQuantity)")
+                return true
+            } catch {
+                print("❌ 更新AI物品数量失败: \(error)")
+                return false
+            }
+        }
     }
 
     // MARK: - 辅助方法

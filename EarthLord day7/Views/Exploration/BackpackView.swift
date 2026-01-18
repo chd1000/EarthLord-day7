@@ -53,7 +53,7 @@ struct BackpackView: View {
         }
     }
 
-    /// 筛选后的物品列表
+    /// 筛选后的普通物品列表
     private var filteredItems: [DBInventoryItem] {
         var result = inventoryManager.inventoryItems
 
@@ -73,6 +73,28 @@ struct BackpackView: View {
         }
 
         return result
+    }
+
+    /// 筛选后的 AI 物品列表
+    private var filteredAIItems: [DBAIInventoryItem] {
+        var result = inventoryManager.aiInventoryItems
+
+        // 按分类筛选
+        if let category = selectedCategory {
+            result = result.filter { $0.category == category }
+        }
+
+        // 按搜索文字筛选
+        if !searchText.isEmpty {
+            result = result.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+
+        return result
+    }
+
+    /// 是否有任何物品
+    private var hasAnyItems: Bool {
+        !filteredAIItems.isEmpty || !filteredItems.isEmpty
     }
 
     // MARK: - 视图
@@ -326,22 +348,79 @@ struct BackpackView: View {
     /// 物品列表视图
     private var itemListView: some View {
         ScrollView {
-            if filteredItems.isEmpty {
+            if !hasAnyItems {
                 // 空状态
                 emptyStateView
             } else {
                 LazyVStack(spacing: 10) {
-                    ForEach(filteredItems) { item in
-                        if let definition = inventoryManager.getDefinition(for: item.itemId) {
-                            BackpackItemCard(
+                    // AI 物品区域（置顶显示）
+                    if !filteredAIItems.isEmpty {
+                        // AI 物品分组标题
+                        HStack {
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 12))
+                                .foregroundColor(.purple)
+
+                            Text("AI 生成物品")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.purple)
+
+                            Text("(\(filteredAIItems.count))")
+                                .font(.system(size: 12))
+                                .foregroundColor(ApocalypseTheme.textMuted)
+
+                            Spacer()
+                        }
+                        .padding(.horizontal, 4)
+                        .padding(.top, 4)
+
+                        ForEach(filteredAIItems) { item in
+                            AIBackpackItemCard(
                                 item: item,
-                                definition: definition,
                                 onUse: {
                                     Task {
-                                        await inventoryManager.useItem(itemId: item.id)
+                                        await inventoryManager.useAIItem(itemId: item.id)
                                     }
                                 }
                             )
+                        }
+                    }
+
+                    // 普通物品区域
+                    if !filteredItems.isEmpty {
+                        // 如果有 AI 物品，显示普通物品分组标题
+                        if !filteredAIItems.isEmpty {
+                            HStack {
+                                Image(systemName: "cube.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(ApocalypseTheme.textMuted)
+
+                                Text("普通物品")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(ApocalypseTheme.textSecondary)
+
+                                Text("(\(filteredItems.count))")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(ApocalypseTheme.textMuted)
+
+                                Spacer()
+                            }
+                            .padding(.horizontal, 4)
+                            .padding(.top, 12)
+                        }
+
+                        ForEach(filteredItems) { item in
+                            if let definition = inventoryManager.getDefinition(for: item.itemId) {
+                                BackpackItemCard(
+                                    item: item,
+                                    definition: definition,
+                                    onUse: {
+                                        Task {
+                                            await inventoryManager.useItem(itemId: item.id)
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -356,7 +435,7 @@ struct BackpackView: View {
     /// 空状态视图
     private var emptyStateView: some View {
         VStack(spacing: 16) {
-            if inventoryManager.inventoryItems.isEmpty {
+            if inventoryManager.inventoryItems.isEmpty && inventoryManager.aiInventoryItems.isEmpty {
                 // 背包完全为空
                 Image(systemName: "bag")
                     .font(.system(size: 60))
@@ -448,8 +527,10 @@ struct BackpackItemCard: View {
     private var rarityColor: Color {
         switch definition.rarity {
         case "common": return .gray
+        case "uncommon": return .green
         case "rare": return .blue
         case "epic": return .purple
+        case "legendary": return .orange
         default: return .gray
         }
     }
@@ -544,6 +625,178 @@ struct BackpackItemCard: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(ApocalypseTheme.cardBackground)
         )
+    }
+}
+
+// MARK: - AI 物品卡片组件
+
+/// AI 背包物品卡片
+struct AIBackpackItemCard: View {
+    let item: DBAIInventoryItem
+    let onUse: () -> Void
+
+    /// 展开状态（显示故事）
+    @State private var isExpanded: Bool = false
+
+    /// 分类颜色
+    private var categoryColor: Color {
+        switch item.category {
+        case "food": return .orange
+        case "medical": return .red
+        case "tool": return .gray
+        case "material": return .brown
+        case "equipment": return .purple
+        case "water": return .blue
+        case "weapon": return .yellow
+        default: return .secondary
+        }
+    }
+
+    /// 稀有度颜色
+    private var rarityColor: Color {
+        switch item.rarity {
+        case "common": return .gray
+        case "uncommon": return .green
+        case "rare": return .blue
+        case "epic": return .purple
+        case "legendary": return .orange
+        default: return .gray
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 12) {
+                // 左边：圆形图标（带 AI 标记）
+                ZStack {
+                    Circle()
+                        .fill(categoryColor.opacity(0.15))
+                        .frame(width: 48, height: 48)
+
+                    Image(systemName: item.icon)
+                        .font(.system(size: 20))
+                        .foregroundColor(categoryColor)
+
+                    // AI 标记
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 10))
+                        .foregroundColor(.purple)
+                        .offset(x: 16, y: -16)
+                }
+
+                // 中间：物品信息
+                VStack(alignment: .leading, spacing: 6) {
+                    // 第一行：名称 + 数量
+                    HStack(spacing: 6) {
+                        Text(item.name)
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(ApocalypseTheme.textPrimary)
+
+                        Text("x\(item.quantity)")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(ApocalypseTheme.primary)
+                    }
+
+                    // 第二行：分类 + 稀有度
+                    HStack(spacing: 8) {
+                        // 分类
+                        Text(item.categoryDisplayName)
+                            .font(.system(size: 11))
+                            .foregroundColor(ApocalypseTheme.textMuted)
+
+                        // 稀有度标签
+                        Text(item.rarityDisplayName)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(rarityColor)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(rarityColor.opacity(0.15))
+                            )
+                    }
+                }
+
+                Spacer()
+
+                // 右边：操作按钮和展开指示器
+                VStack(spacing: 8) {
+                    // 使用按钮
+                    Button {
+                        onUse()
+                    } label: {
+                        Text("使用")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(ApocalypseTheme.primary)
+                            )
+                    }
+
+                    // 展开/收起指示器（如果有故事）
+                    if item.story != nil {
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10))
+                            .foregroundColor(ApocalypseTheme.textMuted)
+                    }
+                }
+            }
+            .padding(14)
+
+            // 故事展开区域
+            if isExpanded, let story = item.story {
+                VStack(alignment: .leading, spacing: 4) {
+                    Divider()
+                        .padding(.horizontal, 14)
+
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: "quote.opening")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+
+                        Text(story)
+                            .font(.system(size: 12))
+                            .foregroundColor(ApocalypseTheme.textSecondary)
+                            .italic()
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+
+                    // 来源信息
+                    if let poiName = item.poiName {
+                        HStack(spacing: 4) {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.system(size: 10))
+                            Text("来自: \(poiName)")
+                                .font(.system(size: 10))
+                        }
+                        .foregroundColor(ApocalypseTheme.textMuted)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 10)
+                    }
+                }
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(ApocalypseTheme.cardBackground)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.purple.opacity(0.2), lineWidth: 1)
+                )
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if item.story != nil {
+                withAnimation(.spring(response: 0.3)) {
+                    isExpanded.toggle()
+                }
+            }
+        }
     }
 }
 

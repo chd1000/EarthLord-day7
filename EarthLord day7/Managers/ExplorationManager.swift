@@ -464,7 +464,7 @@ class ExplorationManager: ObservableObject {
         showProximityPopup = false
     }
 
-    /// 执行搜刮
+    /// 执行搜刮（使用 AI 生成物品）
     func performScavenge(poi: POI) async {
         guard poi.canScavenge else {
             print("⚠️ [POI] 该地点无法搜刮")
@@ -477,27 +477,46 @@ class ExplorationManager: ObservableObject {
         print("🔍 [POI] 开始搜刮: \(poi.name)")
         TerritoryLogger.shared.log("正在搜刮: \(poi.name)", type: .info)
 
-        // 模拟搜刮延迟
-        try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5秒
+        // 根据危险等级确定物品数量
+        let itemCount = min(poi.dangerLevel + 1, 5)
 
-        // 生成奖励
-        let rewards = generateScavengeRewards(poi: poi)
+        // 1. 调用 AI 生成物品
+        let aiItems = await AIItemGenerator.shared.generateItems(for: poi, count: itemCount)
 
-        // 创建搜刮结果
+        // 2. 如果 AI 失败，使用降级方案
+        let items = aiItems ?? AIItemGenerator.shared.generateFallbackItems(for: poi, count: itemCount)
+        let isAIGenerated = aiItems != nil
+
+        // 3. 保存到数据库
+        _ = await AIItemGenerator.shared.saveToInventory(items: items, poi: poi)
+
+        // 4. 转换为 ScavengedItem 用于显示
+        let rewards = items.map { item in
+            ScavengeResult.ScavengedItem(
+                itemId: UUID().uuidString,  // AI 物品使用临时 ID
+                name: item.name,
+                quantity: 1,
+                rarity: item.rarity,
+                icon: item.icon,
+                category: item.category,
+                story: item.story,
+                isAIGenerated: isAIGenerated
+            )
+        }
+
+        // 5. 创建搜刮结果
         let result = ScavengeResult(
             poiId: poi.id,
             poiName: poi.name,
             poiType: poi.type,
-            items: rewards
+            items: rewards,
+            isAIGenerated: isAIGenerated
         )
 
-        // 将物品添加到背包
-        if !rewards.isEmpty {
-            let itemsToAdd = rewards.map { (itemId: $0.itemId, quantity: $0.quantity) }
-            await inventoryManager.addItems(itemsToAdd)
-        }
+        // 6. 通知 InventoryManager 刷新 AI 物品
+        await inventoryManager.loadAIInventory()
 
-        // 标记POI为已搜刮
+        // 7. 标记POI为已搜刮
         if let index = nearbyPOIs.firstIndex(where: { $0.id == poi.id }) {
             nearbyPOIs[index].status = .looted
             nearbyPOIs[index].hasLoot = false
@@ -510,7 +529,7 @@ class ExplorationManager: ObservableObject {
         currentProximityPOI = nil
         poiUpdateVersion += 1
 
-        print("🔍 [POI] 搜刮完成，获得 \(rewards.count) 种物品")
+        print("🔍 [POI] 搜刮完成，获得 \(rewards.count) 种\(isAIGenerated ? "AI生成" : "预设")物品")
         TerritoryLogger.shared.log("搜刮成功: 获得 \(rewards.count) 种物品", type: .success)
     }
 

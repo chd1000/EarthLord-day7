@@ -128,14 +128,16 @@ struct ScavengeResult: Identifiable {
     let poiType: POIType
     let items: [ScavengedItem]
     let timestamp: Date
+    let isAIGenerated: Bool  // 是否为 AI 生成的物品
 
-    init(poiId: UUID, poiName: String, poiType: POIType, items: [ScavengedItem]) {
+    init(poiId: UUID, poiName: String, poiType: POIType, items: [ScavengedItem], isAIGenerated: Bool = false) {
         self.id = UUID()
         self.poiId = poiId
         self.poiName = poiName
         self.poiType = poiType
         self.items = items
         self.timestamp = Date()
+        self.isAIGenerated = isAIGenerated
     }
 
     /// 搜刮获得的物品
@@ -147,8 +149,10 @@ struct ScavengeResult: Identifiable {
         let rarity: String
         let icon: String
         let category: String
+        let story: String?        // AI 生成的故事
+        let isAIGenerated: Bool   // 是否为 AI 生成
 
-        init(itemId: String, name: String, quantity: Int, rarity: String, icon: String, category: String) {
+        init(itemId: String, name: String, quantity: Int, rarity: String, icon: String, category: String, story: String? = nil, isAIGenerated: Bool = false) {
             self.id = UUID()
             self.itemId = itemId
             self.name = name
@@ -156,6 +160,8 @@ struct ScavengeResult: Identifiable {
             self.rarity = rarity
             self.icon = icon
             self.category = category
+            self.story = story
+            self.isAIGenerated = isAIGenerated
         }
     }
 }
