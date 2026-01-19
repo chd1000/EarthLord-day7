@@ -15,6 +15,25 @@ struct ProfileTabView: View {
     /// 是否显示登出确认弹窗
     @State private var showSignOutAlert = false
 
+    init() {
+        // 设置导航栏外观（橙色标题）- 使用 ApocalypseTheme.primary 的颜色值
+        let primaryOrange = UIColor(red: 1.0, green: 0.4, blue: 0.1, alpha: 1.0)
+
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(red: 0.08, green: 0.08, blue: 0.08, alpha: 1.0)
+        appearance.largeTitleTextAttributes = [
+            .foregroundColor: primaryOrange
+        ]
+        appearance.titleTextAttributes = [
+            .foregroundColor: primaryOrange
+        ]
+
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
+    }
+
     /// 是否显示删除账户确认弹窗
     @State private var showDeleteAccountAlert = false
 
@@ -59,8 +78,8 @@ struct ProfileTabView: View {
             }
             .navigationTitle(languageManager.localizedString("个人"))
             .navigationBarTitleDisplayMode(.large)
-            .toolbarColorScheme(.dark, for: .navigationBar)
         }
+        .tint(ApocalypseTheme.primary)
         .alert(languageManager.localizedString("退出登录"), isPresented: $showSignOutAlert) {
             Button(languageManager.localizedString("取消"), role: .cancel) {}
             Button(languageManager.localizedString("退出"), role: .destructive) {
@@ -173,9 +192,26 @@ struct ProfileTabView: View {
 
     private var menuSection: some View {
         VStack(spacing: 0) {
-            menuItem(icon: "gearshape.fill", iconColor: .gray, title: languageManager.localizedString("设置")) {
-                // TODO: 导航到设置页面
-                print("点击设置")
+            // 设置 - 使用 NavigationLink
+            NavigationLink(destination: SettingsView()) {
+                HStack(spacing: 16) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.title2)
+                        .foregroundColor(.gray)
+                        .frame(width: 30)
+
+                    Text(languageManager.localizedString("设置"))
+                        .font(.body)
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textMuted)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
             }
 
             Divider()
