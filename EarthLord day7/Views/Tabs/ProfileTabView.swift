@@ -11,9 +11,13 @@ import Supabase
 struct ProfileTabView: View {
     @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var languageManager: LanguageManager
+    @ObservedObject private var territoryManager = TerritoryManager.shared
 
     /// 是否显示登出确认弹窗
     @State private var showSignOutAlert = false
+
+    /// 领地数量
+    @State private var territoryCount: Int = 0
 
     init() {
         // 设置导航栏外观（橙色标题）- 使用 ApocalypseTheme.primary 的颜色值
@@ -78,6 +82,9 @@ struct ProfileTabView: View {
             }
             .navigationTitle(languageManager.localizedString("个人"))
             .navigationBarTitleDisplayMode(.large)
+        }
+        .task {
+            await loadStatistics()
         }
         .tint(ApocalypseTheme.primary)
         .alert(languageManager.localizedString("退出登录"), isPresented: $showSignOutAlert) {
@@ -156,7 +163,7 @@ struct ProfileTabView: View {
     private var statisticsSection: some View {
         VStack(spacing: 12) {
             HStack(spacing: 12) {
-                statisticsItem(icon: "flag.fill", title: languageManager.localizedString("领地"), value: "0")
+                statisticsItem(icon: "flag.fill", title: languageManager.localizedString("领地"), value: "\(territoryCount)")
                 statisticsItem(icon: "map.fill", title: languageManager.localizedString("探索"), value: "0")
             }
 
@@ -466,6 +473,14 @@ struct ProfileTabView: View {
     /// 显示邮箱
     private var displayEmail: String {
         authManager.currentUser?.email ?? "未知邮箱"
+    }
+
+    // MARK: - 数据加载
+
+    /// 加载统计数据
+    private func loadStatistics() async {
+        let territories = await territoryManager.loadMyTerritories()
+        territoryCount = territories.count
     }
 }
 
