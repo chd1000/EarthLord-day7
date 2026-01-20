@@ -7,13 +7,16 @@
 //
 
 import SwiftUI
+import CoreLocation
 
 struct POIListView: View {
 
-    // MARK: - 状态
+    // MARK: - 依赖
 
-    /// POI 列表（从 MockData 加载）
-    @State private var poiList: [POI] = MockExplorationData.mockPOIs
+    /// 探索管理器（获取真实POI数据）
+    @ObservedObject private var explorationManager = ExplorationManager.shared
+
+    // MARK: - 状态
 
     /// 当前选中的筛选分类（nil 表示全部）
     @State private var selectedCategory: POIType? = nil
@@ -27,11 +30,22 @@ struct POIListView: View {
     /// POI 列表项显示状态（用于依次淡入动画）
     @State private var visibleItems: Set<UUID> = []
 
-    /// 假 GPS 坐标
-    private let mockLatitude: Double = 22.54
-    private let mockLongitude: Double = 114.06
+    // MARK: - 计算属性（真实数据）
 
-    // MARK: - 计算属性
+    /// POI 列表（从 ExplorationManager 获取）
+    private var poiList: [POI] {
+        explorationManager.nearbyPOIs
+    }
+
+    /// 当前纬度（从 LocationManager 获取）
+    private var currentLatitude: Double {
+        LocationManager.shared.userLocation?.latitude ?? 0
+    }
+
+    /// 当前经度（从 LocationManager 获取）
+    private var currentLongitude: Double {
+        LocationManager.shared.userLocation?.longitude ?? 0
+    }
 
     /// 筛选后的 POI 列表
     private var filteredPOIs: [POI] {
@@ -87,7 +101,7 @@ struct POIListView: View {
                     .foregroundColor(ApocalypseTheme.success)
                     .font(.system(size: 12))
 
-                Text(String(format: "%.2f, %.2f", mockLatitude, mockLongitude))
+                Text(String(format: "%.2f, %.2f", currentLatitude, currentLongitude))
                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                     .foregroundColor(ApocalypseTheme.textSecondary)
             }
@@ -323,15 +337,27 @@ struct POIListView: View {
 
     // MARK: - 方法
 
-    /// 执行搜索（模拟网络请求）
+    /// 执行搜索（调用真实 Apple Maps API）
     private func performSearch() {
         isSearching = true
 
-        // 1.5 秒后恢复（模拟网络请求）
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+        // 重置动画状态
+        visibleItems.removeAll()
+
+        Task {
+            await explorationManager.searchNearbyPOIs()
             isSearching = false
-            // 这里可以刷新 POI 数据
-            print("搜索完成，发现 \(poiList.count) 个地点")
+
+            // 触发列表项淡入动画
+            for (index, poi) in poiList.enumerated() {
+                DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * 0.1) {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        _ = visibleItems.insert(poi.id)
+                    }
+                }
+            }
+
+            print("🔍 搜索完成，发现 \(poiList.count) 个地点")
         }
     }
 
