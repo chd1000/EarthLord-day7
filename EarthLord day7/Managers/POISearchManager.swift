@@ -199,7 +199,9 @@ class POISearchManager: ObservableObject {
                 guard let location = mapItem.placemark.location else { return nil }
 
                 // 检查是否在搜索半径内
-                let centerLocation = CLLocation(latitude: center.latitude, longitude: center.longitude)
+                // MapKit在中国返回GCJ-02坐标，需要将用户位置(WGS-84)转换为GCJ-02再计算距离
+                let centerGCJ02 = CoordinateConverter.wgs84ToGcj02(center)
+                let centerLocation = CLLocation(latitude: centerGCJ02.latitude, longitude: centerGCJ02.longitude)
                 let distance = location.distance(from: centerLocation)
                 guard distance <= searchRadius else { return nil }
 
@@ -233,7 +235,9 @@ class POISearchManager: ObservableObject {
                 guard let location = mapItem.placemark.location else { return nil }
 
                 // 检查是否在搜索半径内
-                let centerLocation = CLLocation(latitude: center.latitude, longitude: center.longitude)
+                // MapKit在中国返回GCJ-02坐标，需要将用户位置(WGS-84)转换为GCJ-02再计算距离
+                let centerGCJ02 = CoordinateConverter.wgs84ToGcj02(center)
+                let centerLocation = CLLocation(latitude: centerGCJ02.latitude, longitude: centerGCJ02.longitude)
                 let distance = location.distance(from: centerLocation)
                 guard distance <= searchRadius else { return nil }
 
