@@ -10,6 +10,9 @@ import SwiftUI
 
 struct TerritoryTabView: View {
 
+    // MARK: - 环境
+    @EnvironmentObject private var languageManager: LanguageManager
+
     // MARK: - 状态
 
     @StateObject private var territoryManager = TerritoryManager.shared
@@ -43,7 +46,7 @@ struct TerritoryTabView: View {
                     territoryListView
                 }
             }
-            .navigationTitle("我的领地")
+            .navigationTitle(languageManager.localizedString("我的领地"))
             .refreshable {
                 await loadMyTerritories()
             }
@@ -71,7 +74,7 @@ struct TerritoryTabView: View {
         VStack(spacing: 16) {
             ProgressView()
                 .scaleEffect(1.5)
-            Text("加载中...")
+            Text(languageManager.localizedString("加载中..."))
                 .foregroundColor(.secondary)
         }
     }
@@ -83,11 +86,11 @@ struct TerritoryTabView: View {
                 .font(.system(size: 60))
                 .foregroundColor(.secondary)
 
-            Text("还没有领地")
+            Text(languageManager.localizedString("还没有领地"))
                 .font(.title2)
                 .fontWeight(.medium)
 
-            Text("去地图页面圈一块属于你的领地吧！")
+            Text(languageManager.localizedString("去地图页面圈一块属于你的领地吧！"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -121,7 +124,7 @@ struct TerritoryTabView: View {
             StatItem(
                 icon: "flag.fill",
                 value: "\(myTerritories.count)",
-                label: "领地数量"
+                label: languageManager.localizedString("领地数量")
             )
 
             Divider()
@@ -131,7 +134,7 @@ struct TerritoryTabView: View {
             StatItem(
                 icon: "square.dashed",
                 value: formattedTotalArea,
-                label: "总面积"
+                label: languageManager.localizedString("总面积")
             )
         }
         .padding(.vertical, 16)
@@ -187,6 +190,7 @@ struct StatItem: View {
 // MARK: - 领地卡片组件
 
 struct TerritoryCard: View {
+    @EnvironmentObject private var languageManager: LanguageManager
     let territory: Territory
 
     var body: some View {
@@ -204,13 +208,13 @@ struct TerritoryCard: View {
 
             // 领地信息
             VStack(alignment: .leading, spacing: 4) {
-                Text(territory.displayName)
+                Text(territory.name ?? languageManager.localizedString("未命名领地"))
                     .font(.headline)
                     .lineLimit(1)
 
                 HStack(spacing: 12) {
                     Label(territory.formattedArea, systemImage: "square.dashed")
-                    Label("\(territory.pointCount) 点", systemImage: "mappin.circle")
+                    Label("\(territory.pointCount) \(languageManager.localizedString("点"))", systemImage: "mappin.circle")
                 }
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -233,4 +237,5 @@ struct TerritoryCard: View {
 
 #Preview {
     TerritoryTabView()
+        .environmentObject(LanguageManager.shared)
 }

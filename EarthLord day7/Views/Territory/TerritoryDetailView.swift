@@ -19,6 +19,7 @@ struct TerritoryDetailView: View {
     // MARK: - 环境
 
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var languageManager: LanguageManager
 
     // MARK: - 状态
 
@@ -51,24 +52,24 @@ struct TerritoryDetailView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle(territory.displayName)
+            .navigationTitle(territory.name ?? languageManager.localizedString("未命名领地"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("关闭") {
+                    Button(languageManager.localizedString("关闭")) {
                         dismiss()
                     }
                 }
             }
-            .alert("确认删除", isPresented: $showDeleteAlert) {
-                Button("取消", role: .cancel) { }
-                Button("删除", role: .destructive) {
+            .alert(languageManager.localizedString("确认删除"), isPresented: $showDeleteAlert) {
+                Button(languageManager.localizedString("取消"), role: .cancel) { }
+                Button(languageManager.localizedString("删除"), role: .destructive) {
                     Task {
                         await deleteTerritory()
                     }
                 }
             } message: {
-                Text("确定要删除这块领地吗？此操作无法撤销。")
+                Text(languageManager.localizedString("确定要删除这块领地吗？此操作无法撤销。"))
             }
         }
     }
@@ -101,7 +102,7 @@ struct TerritoryDetailView: View {
             HStack {
                 Image(systemName: "info.circle.fill")
                     .foregroundColor(.orange)
-                Text("领地信息")
+                Text(languageManager.localizedString("领地信息"))
                     .font(.headline)
                 Spacer()
             }
@@ -111,14 +112,14 @@ struct TerritoryDetailView: View {
 
             // 信息行
             VStack(spacing: 0) {
-                InfoRow(label: "面积", value: territory.formattedArea)
+                InfoRow(label: languageManager.localizedString("面积"), value: territory.formattedArea)
                 Divider().padding(.leading)
-                InfoRow(label: "路径点数", value: "\(territory.pointCount) 个")
+                InfoRow(label: languageManager.localizedString("路径点数"), value: "\(territory.pointCount) \(languageManager.localizedString("个"))")
                 Divider().padding(.leading)
-                InfoRow(label: "创建时间", value: territory.formattedCreatedAt)
+                InfoRow(label: languageManager.localizedString("创建时间"), value: territory.formattedCreatedAt)
                 if territory.completedAt != nil {
                     Divider().padding(.leading)
-                    InfoRow(label: "状态", value: territory.isActive ? "激活" : "未激活")
+                    InfoRow(label: languageManager.localizedString("状态"), value: territory.isActive ? languageManager.localizedString("激活") : languageManager.localizedString("未激活"))
                 }
             }
         }
@@ -133,7 +134,7 @@ struct TerritoryDetailView: View {
             HStack {
                 Image(systemName: "sparkles")
                     .foregroundColor(.orange)
-                Text("更多功能")
+                Text(languageManager.localizedString("更多功能"))
                     .font(.headline)
                 Spacer()
             }
@@ -143,11 +144,11 @@ struct TerritoryDetailView: View {
 
             // 功能列表
             VStack(spacing: 0) {
-                FutureFeatureRow(icon: "pencil", title: "重命名领地", subtitle: "敬请期待")
+                FutureFeatureRow(icon: "pencil", title: languageManager.localizedString("重命名领地"), subtitle: languageManager.localizedString("敬请期待"))
                 Divider().padding(.leading, 56)
-                FutureFeatureRow(icon: "building.2", title: "建筑系统", subtitle: "敬请期待")
+                FutureFeatureRow(icon: "building.2", title: languageManager.localizedString("建筑系统"), subtitle: languageManager.localizedString("敬请期待"))
                 Divider().padding(.leading, 56)
-                FutureFeatureRow(icon: "arrow.left.arrow.right", title: "领地交易", subtitle: "敬请期待")
+                FutureFeatureRow(icon: "arrow.left.arrow.right", title: languageManager.localizedString("领地交易"), subtitle: languageManager.localizedString("敬请期待"))
             }
         }
         .background(Color(.secondarySystemGroupedBackground))
@@ -166,7 +167,7 @@ struct TerritoryDetailView: View {
                 } else {
                     Image(systemName: "trash")
                 }
-                Text(isDeleting ? "删除中..." : "删除领地")
+                Text(isDeleting ? languageManager.localizedString("删除中...") : languageManager.localizedString("删除领地"))
             }
             .frame(maxWidth: .infinity)
             .padding()
@@ -267,4 +268,5 @@ struct FutureFeatureRow: View {
             createdAt: Date()
         )
     )
+    .environmentObject(LanguageManager.shared)
 }

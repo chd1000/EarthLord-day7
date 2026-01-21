@@ -145,7 +145,7 @@ struct MapTabView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .foregroundColor(.white)
-                                Text(locationManager.explorationSpeedWarning ?? "速度过快")
+                                Text(locationManager.explorationSpeedWarning ?? languageManager.localizedString("速度过快"))
                                     .font(.system(size: 13, weight: .semibold))
                                     .foregroundColor(.white)
                             }
@@ -504,14 +504,14 @@ struct MapTabView: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(0.8)
-                    Text("处理中...")
+                    Text(languageManager.localizedString("处理中..."))
                         .font(.system(size: 14, weight: .semibold))
                 } else if explorationManager.isExploring {
                     // 探索中状态
                     Image(systemName: "stop.fill")
                         .font(.system(size: 14, weight: .semibold))
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("结束探索")
+                        Text(languageManager.localizedString("结束探索"))
                             .font(.system(size: 14, weight: .semibold))
                         Text("\(Int(explorationManager.currentDistance))m")
                             .font(.system(size: 10, weight: .medium))
@@ -521,7 +521,7 @@ struct MapTabView: View {
                     // 正常状态
                     Image(systemName: "binoculars.fill")
                         .font(.system(size: 16, weight: .semibold))
-                    Text("探索")
+                    Text(languageManager.localizedString("探索"))
                         .font(.system(size: 14, weight: .semibold))
                 }
             }
@@ -550,7 +550,7 @@ struct MapTabView: View {
                 Text("\(Int(explorationManager.currentDistance)) m")
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
-                Text("距离")
+                Text(languageManager.localizedString("距离"))
                     .font(.system(size: 12))
                     .foregroundColor(.white.opacity(0.7))
             }
@@ -566,7 +566,7 @@ struct MapTabView: View {
                 Text(String(format: "%.1f km/h", locationManager.explorationCurrentSpeed))
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(locationManager.isExplorationOverSpeed ? .red : .white)
-                Text("速度")
+                Text(languageManager.localizedString("速度"))
                     .font(.system(size: 12))
                     .foregroundColor(.white.opacity(0.7))
             }
@@ -582,7 +582,7 @@ struct MapTabView: View {
                 Text(formatDuration(Int(explorationManager.currentDuration)))
                     .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
-                Text("时长")
+                Text(languageManager.localizedString("时长"))
                     .font(.system(size: 12))
                     .foregroundColor(.white.opacity(0.7))
             }

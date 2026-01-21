@@ -11,13 +11,27 @@ import SwiftUI
 /// 资源分段枚举
 enum ResourceSegment: String, CaseIterable {
     case poi = "POI"
-    case backpack = "背包"
-    case purchased = "已购"
-    case territory = "领地"
-    case trade = "交易"
+    case backpack = "backpack"
+    case purchased = "purchased"
+    case territory = "territory"
+    case trade = "trade"
+
+    /// 获取本地化显示名称
+    func localizedName(_ languageManager: LanguageManager) -> String {
+        switch self {
+        case .poi: return "POI"
+        case .backpack: return languageManager.localizedString("背包")
+        case .purchased: return languageManager.localizedString("已购")
+        case .territory: return languageManager.localizedString("领地")
+        case .trade: return languageManager.localizedString("交易")
+        }
+    }
 }
 
 struct ResourcesTabView: View {
+
+    // MARK: - 环境
+    @EnvironmentObject private var languageManager: LanguageManager
 
     // MARK: - 状态
 
@@ -63,7 +77,7 @@ struct ResourcesTabView: View {
                 contentView
             }
             .background(ApocalypseTheme.background)
-            .navigationTitle("资源")
+            .navigationTitle(languageManager.localizedString("附近地点"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -79,7 +93,7 @@ struct ResourcesTabView: View {
     private var segmentPicker: some View {
         Picker("分段", selection: $selectedSegment) {
             ForEach(ResourceSegment.allCases, id: \.self) { segment in
-                Text(segment.rawValue)
+                Text(segment.localizedName(languageManager))
                     .tag(segment)
             }
         }
@@ -91,7 +105,7 @@ struct ResourcesTabView: View {
     /// 交易开关
     private var tradeToggle: some View {
         HStack(spacing: 6) {
-            Text("交易")
+            Text(languageManager.localizedString("交易"))
                 .font(.system(size: 13))
                 .foregroundColor(ApocalypseTheme.textSecondary)
 
@@ -117,22 +131,22 @@ struct ResourcesTabView: View {
         case .purchased:
             placeholderView(
                 icon: "bag.fill",
-                title: "已购物品",
-                subtitle: "功能开发中"
+                title: languageManager.localizedString("已购物品"),
+                subtitle: languageManager.localizedString("功能开发中")
             )
 
         case .territory:
             placeholderView(
                 icon: "flag.fill",
-                title: "领地资源",
-                subtitle: "功能开发中"
+                title: languageManager.localizedString("领地资源"),
+                subtitle: languageManager.localizedString("功能开发中")
             )
 
         case .trade:
             placeholderView(
                 icon: "arrow.triangle.2.circlepath",
-                title: "交易市场",
-                subtitle: "功能开发中"
+                title: languageManager.localizedString("交易市场"),
+                subtitle: languageManager.localizedString("功能开发中")
             )
         }
     }
@@ -170,7 +184,7 @@ struct ResourcesTabView: View {
                 Image(systemName: "hammer.fill")
                     .font(.system(size: 12))
 
-                Text("敬请期待")
+                Text(languageManager.localizedString("敬请期待"))
                     .font(.system(size: 13, weight: .medium))
             }
             .foregroundColor(ApocalypseTheme.primary)
@@ -192,4 +206,5 @@ struct ResourcesTabView: View {
 
 #Preview {
     ResourcesTabView()
+        .environmentObject(LanguageManager.shared)
 }

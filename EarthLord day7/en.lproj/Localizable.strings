@@ -127,3 +127,73 @@
 "清空日志" = "Clear Logs";
 "导出日志" = "Export Logs";
 "日志已清空" = "Logs cleared";
+
+/* Tab Bar - Resources */
+"资源" = "Resources";
+
+/* My Territory Page */
+"我的领地" = "My Territory";
+"领地数量" = "Territories";
+"总面积" = "Total Area";
+"未命名领地" = "Unnamed Territory";
+"点" = "pts";
+
+/* Territory Detail Page */
+"关闭" = "Close";
+"领地信息" = "Territory Info";
+"面积" = "Area";
+"路径点数" = "Path Points";
+"个" = "";
+"创建时间" = "Created";
+"状态" = "Status";
+"激活" = "Active";
+"更多功能" = "More Features";
+"重命名领地" = "Rename Territory";
+"敬请期待" = "Coming Soon";
+"建筑系统" = "Building System";
+"领地交易" = "Territory Trade";
+"删除领地" = "Delete Territory";
+
+/* POI / Nearby Places Page */
+"附近地点" = "Nearby";
+"交易" = "Trade";
+"背包" = "Backpack";
+"已购" = "Purchased";
+"附近发现 %d 个地点" = "Found %d places nearby";
+"搜索附近 POI" = "Search Nearby POI";
+"全部" = "All";
+"医院" = "Hospital";
+"超市" = "Supermarket";
+"工厂" = "Factory";
+"附近暂无兴趣点" = "No POIs nearby";
+"点击搜索按钮发现周围的废墟" = "Tap search to discover nearby ruins";
+"药店" = "Pharmacy";
+"加油站" = "Gas Station";
+"搜索中..." = "Searching...";
+"没有找到该类型的地点" = "No places of this type found";
+"试试切换其他分类" = "Try a different category";
+"有物资" = "Has loot";
+"无物资" = "No loot";
+
+/* Territory Page Additional */
+"加载中..." = "Loading...";
+"还没有领地" = "No Territory Yet";
+"去地图页面圈一块属于你的领地吧！" = "Go to the map and claim your first territory!";
+"确认删除" = "Confirm Delete";
+"确定要删除这块领地吗？此操作无法撤销。" = "Are you sure you want to delete this territory? This action cannot be undone.";
+"删除中..." = "Deleting...";
+"未激活" = "Inactive";
+
+/* Resources Page Additional */
+"已购物品" = "Purchased Items";
+"领地资源" = "Territory Resources";
+"交易市场" = "Trade Market";
+"功能开发中" = "In Development";
+
+/* Exploration */
+"处理中..." = "Processing...";
+"结束探索" = "End Explore";
+"距离" = "Distance";
+"速度" = "Speed";
+"时长" = "Duration";
+"速度过快" = "Too Fast";

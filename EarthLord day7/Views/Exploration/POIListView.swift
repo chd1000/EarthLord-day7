@@ -11,6 +11,9 @@ import CoreLocation
 
 struct POIListView: View {
 
+    // MARK: - 环境
+    @EnvironmentObject private var languageManager: LanguageManager
+
     // MARK: - 依赖
 
     /// 探索管理器（获取真实POI数据）
@@ -86,7 +89,7 @@ struct POIListView: View {
                     .padding(.top, 12)
             }
         }
-        .navigationTitle("附近地点")
+        .navigationTitle(languageManager.localizedString("附近地点"))
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -114,7 +117,7 @@ struct POIListView: View {
                     .foregroundColor(ApocalypseTheme.primary)
                     .font(.system(size: 12))
 
-                Text("附近发现 \(discoveredCount) 个地点")
+                Text(languageManager.localizedString("附近发现 %d 个地点", discoveredCount))
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(ApocalypseTheme.textSecondary)
             }
@@ -146,13 +149,13 @@ struct POIListView: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(0.9)
 
-                    Text("搜索中...")
+                    Text(languageManager.localizedString("搜索中..."))
                         .font(.system(size: 16, weight: .semibold))
                 } else {
                     Image(systemName: "antenna.radiowaves.left.and.right")
                         .font(.system(size: 18))
 
-                    Text("搜索附近POI")
+                    Text(languageManager.localizedString("搜索附近 POI"))
                         .font(.system(size: 16, weight: .semibold))
                 }
             }
@@ -176,7 +179,7 @@ struct POIListView: View {
             HStack(spacing: 10) {
                 // 全部
                 FilterChip(
-                    title: "全部",
+                    title: languageManager.localizedString("全部"),
                     icon: "square.grid.2x2.fill",
                     color: ApocalypseTheme.primary,
                     isSelected: selectedCategory == nil
@@ -188,7 +191,7 @@ struct POIListView: View {
 
                 // 医院
                 FilterChip(
-                    title: "医院",
+                    title: languageManager.localizedString("医院"),
                     icon: "cross.case.fill",
                     color: .red,
                     isSelected: selectedCategory == .hospital
@@ -200,7 +203,7 @@ struct POIListView: View {
 
                 // 超市
                 FilterChip(
-                    title: "超市",
+                    title: languageManager.localizedString("超市"),
                     icon: "cart.fill",
                     color: .green,
                     isSelected: selectedCategory == .supermarket
@@ -212,7 +215,7 @@ struct POIListView: View {
 
                 // 工厂
                 FilterChip(
-                    title: "工厂",
+                    title: languageManager.localizedString("工厂"),
                     icon: "building.2.fill",
                     color: .gray,
                     isSelected: selectedCategory == .factory
@@ -224,7 +227,7 @@ struct POIListView: View {
 
                 // 药店
                 FilterChip(
-                    title: "药店",
+                    title: languageManager.localizedString("药店"),
                     icon: "pills.fill",
                     color: .purple,
                     isSelected: selectedCategory == .pharmacy
@@ -236,7 +239,7 @@ struct POIListView: View {
 
                 // 加油站
                 FilterChip(
-                    title: "加油站",
+                    title: languageManager.localizedString("加油站"),
                     icon: "fuelpump.fill",
                     color: .orange,
                     isSelected: selectedCategory == .gasStation
@@ -309,11 +312,11 @@ struct POIListView: View {
                     .font(.system(size: 60))
                     .foregroundColor(ApocalypseTheme.textMuted)
 
-                Text("附近暂无兴趣点")
+                Text(languageManager.localizedString("附近暂无兴趣点"))
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(ApocalypseTheme.textSecondary)
 
-                Text("点击搜索按钮发现周围的废墟")
+                Text(languageManager.localizedString("点击搜索按钮发现周围的废墟"))
                     .font(.system(size: 14))
                     .foregroundColor(ApocalypseTheme.textMuted)
             } else if selectedCategory != nil {
@@ -322,11 +325,11 @@ struct POIListView: View {
                     .font(.system(size: 60))
                     .foregroundColor(ApocalypseTheme.textMuted)
 
-                Text("没有找到该类型的地点")
+                Text(languageManager.localizedString("没有找到该类型的地点"))
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(ApocalypseTheme.textSecondary)
 
-                Text("试试切换其他分类")
+                Text(languageManager.localizedString("试试切换其他分类"))
                     .font(.system(size: 14))
                     .foregroundColor(ApocalypseTheme.textMuted)
             }
@@ -401,6 +404,7 @@ struct FilterChip: View {
 
 /// POI 卡片
 struct POICard: View {
+    @EnvironmentObject private var languageManager: LanguageManager
     let poi: POI
 
     /// 根据 POI 类型返回颜色
@@ -490,7 +494,7 @@ struct POICard: View {
                     HStack(spacing: 4) {
                         Image(systemName: poi.hasLoot ? "cube.box.fill" : "cube.box")
                             .font(.system(size: 12))
-                        Text(poi.hasLoot ? "有物资" : "无物资")
+                        Text(poi.hasLoot ? languageManager.localizedString("有物资") : languageManager.localizedString("无物资"))
                             .font(.system(size: 11))
                     }
                     .foregroundColor(poi.hasLoot ? ApocalypseTheme.warning : ApocalypseTheme.textMuted)
@@ -516,4 +520,5 @@ struct POICard: View {
     NavigationStack {
         POIListView()
     }
+    .environmentObject(LanguageManager.shared)
 }

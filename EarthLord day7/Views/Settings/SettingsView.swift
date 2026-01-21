@@ -95,10 +95,14 @@ struct SettingsView: View {
                 }
                 .padding(.top)
             }
-            .navigationTitle(languageManager.localizedString("选择语言"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text(languageManager.localizedString("选择语言"))
+                        .font(.headline)
+                        .foregroundColor(ApocalypseTheme.primary)
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(languageManager.localizedString("完成")) {
                         showLanguagePicker = false
