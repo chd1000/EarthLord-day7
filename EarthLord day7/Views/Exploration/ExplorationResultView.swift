@@ -23,6 +23,7 @@ struct ExplorationResultView: View {
 
     /// 环境变量：关闭页面
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var languageManager: LanguageManager
 
     // MARK: - 状态
 
@@ -57,9 +58,9 @@ struct ExplorationResultView: View {
         let minutes = Int(result.duration) / 60
         let seconds = Int(result.duration) % 60
         if minutes > 0 {
-            return "\(minutes)分\(seconds)秒"
+            return "\(minutes) \(languageManager.localizedString("分")) \(seconds) \(languageManager.localizedString("秒"))"
         } else {
-            return "\(seconds)秒"
+            return "\(seconds) \(languageManager.localizedString("秒"))"
         }
     }
 
@@ -108,11 +109,11 @@ struct ExplorationResultView: View {
                     }
                 }
             }
-            .navigationTitle(isError ? "探索失败" : "探索报告")
+            .navigationTitle(isError ? languageManager.localizedString("探索失败") : languageManager.localizedString("探索报告"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("关闭") {
+                    Button(languageManager.localizedString("关闭")) {
                         dismiss()
                     }
                     .foregroundColor(ApocalypseTheme.primary)
@@ -161,12 +162,12 @@ struct ExplorationResultView: View {
             }
 
             // 错误标题
-            Text("探索失败")
+            Text(languageManager.localizedString("探索失败"))
                 .font(.system(size: 24, weight: .bold))
                 .foregroundColor(ApocalypseTheme.textPrimary)
 
             // 错误信息
-            Text(errorMessage ?? "未知错误")
+            Text(errorMessage ?? languageManager.localizedString("未知错误"))
                 .font(.system(size: 15))
                 .foregroundColor(ApocalypseTheme.textSecondary)
                 .multilineTextAlignment(.center)
@@ -181,7 +182,7 @@ struct ExplorationResultView: View {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 16, weight: .semibold))
 
-                        Text("重试")
+                        Text(languageManager.localizedString("重试"))
                             .font(.system(size: 17, weight: .semibold))
                     }
                     .foregroundColor(.white)
@@ -203,7 +204,7 @@ struct ExplorationResultView: View {
             Button {
                 dismiss()
             } label: {
-                Text("返回")
+                Text(languageManager.localizedString("返回"))
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(ApocalypseTheme.textSecondary)
             }
@@ -251,17 +252,17 @@ struct ExplorationResultView: View {
             }
 
             // 大标题
-            Text("探索完成！")
+            Text(languageManager.localizedString("探索完成！"))
                 .font(.system(size: 28, weight: .bold))
                 .foregroundColor(ApocalypseTheme.textPrimary)
 
             // 奖励等级
             HStack(spacing: 8) {
-                Text("奖励等级")
+                Text(languageManager.localizedString("奖励等级"))
                     .font(.system(size: 14))
                     .foregroundColor(ApocalypseTheme.textSecondary)
 
-                Text(result?.rewardTier.displayName ?? "无奖励")
+                Text(localizedTierName(result?.rewardTier))
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(tierColor)
                     .padding(.horizontal, 12)
@@ -273,12 +274,24 @@ struct ExplorationResultView: View {
             }
 
             // 副标题
-            Text(result?.rewardTier == RewardTier.none ? "行走距离不足200米，无法获得奖励" : "物资已添加到背包")
+            Text(result?.rewardTier == RewardTier.none ? languageManager.localizedString("行走距离不足200米，无法获得奖励") : languageManager.localizedString("物资已添加到背包"))
                 .font(.system(size: 14))
                 .foregroundColor(ApocalypseTheme.textSecondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.top, 10)
+    }
+
+    /// 本地化奖励等级名称
+    private func localizedTierName(_ tier: RewardTier?) -> String {
+        guard let tier = tier else { return languageManager.localizedString("无奖励") }
+        switch tier {
+        case .none: return languageManager.localizedString("无奖励")
+        case .bronze: return languageManager.localizedString("铜级")
+        case .silver: return languageManager.localizedString("银级")
+        case .gold: return languageManager.localizedString("金级")
+        case .diamond: return languageManager.localizedString("钻石级")
+        }
     }
 
     /// 奖励等级对应颜色
@@ -303,7 +316,7 @@ struct ExplorationResultView: View {
                 Image(systemName: "chart.bar.fill")
                     .foregroundColor(ApocalypseTheme.info)
 
-                Text("探索统计")
+                Text(languageManager.localizedString("探索统计"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(ApocalypseTheme.textPrimary)
 
@@ -337,7 +350,7 @@ struct ExplorationResultView: View {
                 }
 
                 // 标题
-                Text("行走距离")
+                Text(languageManager.localizedString("行走距离"))
                     .font(.system(size: 14))
                     .foregroundColor(ApocalypseTheme.textSecondary)
 
@@ -364,14 +377,14 @@ struct ExplorationResultView: View {
                 }
 
                 // 标题
-                Text("奖励等级")
+                Text(languageManager.localizedString("奖励等级"))
                     .font(.system(size: 14))
                     .foregroundColor(ApocalypseTheme.textSecondary)
 
                 Spacer()
 
                 // 等级
-                Text(result?.rewardTier.displayName ?? "无")
+                Text(localizedTierName(result?.rewardTier))
                     .font(.system(size: 16, weight: .bold))
                     .foregroundColor(tierColor)
             }
@@ -393,14 +406,14 @@ struct ExplorationResultView: View {
                 Image(systemName: "gift.fill")
                     .foregroundColor(ApocalypseTheme.warning)
 
-                Text("获得物品")
+                Text(languageManager.localizedString("获得物品"))
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundColor(ApocalypseTheme.textPrimary)
 
                 Spacer()
 
                 // 物品数量
-                Text("\(result?.rewardedItems.count ?? 0) 种")
+                Text("\(result?.rewardedItems.count ?? 0) \(languageManager.localizedString("种"))")
                     .font(.system(size: 13))
                     .foregroundColor(ApocalypseTheme.textSecondary)
             }
@@ -430,7 +443,7 @@ struct ExplorationResultView: View {
                         .font(.system(size: 12))
                         .foregroundColor(ApocalypseTheme.success)
 
-                    Text("已添加到背包")
+                    Text(languageManager.localizedString("已添加到背包"))
                         .font(.system(size: 13))
                         .foregroundColor(ApocalypseTheme.success)
                 }
@@ -442,11 +455,11 @@ struct ExplorationResultView: View {
                         .font(.system(size: 40))
                         .foregroundColor(ApocalypseTheme.textMuted)
 
-                    Text("行走距离不足，没有获得物品")
+                    Text(languageManager.localizedString("行走距离不足，没有获得物品"))
                         .font(.system(size: 14))
                         .foregroundColor(ApocalypseTheme.textMuted)
 
-                    Text("走满200米可获得铜级奖励")
+                    Text(languageManager.localizedString("走满200米可获得铜级奖励"))
                         .font(.system(size: 12))
                         .foregroundColor(ApocalypseTheme.textMuted)
                 }
@@ -471,7 +484,7 @@ struct ExplorationResultView: View {
                 Image(systemName: "checkmark")
                     .font(.system(size: 16, weight: .semibold))
 
-                Text("确认收下")
+                Text(languageManager.localizedString("确认收下"))
                     .font(.system(size: 17, weight: .semibold))
             }
             .foregroundColor(.white)
@@ -494,6 +507,8 @@ struct ExplorationResultView: View {
 
 /// 奖励物品行
 struct RewardItemRowNew: View {
+    @EnvironmentObject private var languageManager: LanguageManager
+
     let name: String
     let quantity: Int
     let rarity: String
@@ -591,9 +606,9 @@ struct RewardItemRowNew: View {
     /// 稀有度显示名称
     private var rarityDisplayName: String {
         switch rarity {
-        case "common": return "普通"
-        case "rare": return "稀有"
-        case "epic": return "史诗"
+        case "common": return languageManager.localizedString("普通")
+        case "rare": return languageManager.localizedString("稀有")
+        case "epic": return languageManager.localizedString("史诗")
         default: return rarity
         }
     }
@@ -614,6 +629,7 @@ struct RewardItemRowNew: View {
             ]
         )
     )
+    .environmentObject(LanguageManager.shared)
 }
 
 #Preview("成功状态 - 无奖励") {
@@ -626,6 +642,7 @@ struct RewardItemRowNew: View {
             rewardedItems: []
         )
     )
+    .environmentObject(LanguageManager.shared)
 }
 
 #Preview("错误状态") {
@@ -636,4 +653,5 @@ struct RewardItemRowNew: View {
             print("重试探索")
         }
     )
+    .environmentObject(LanguageManager.shared)
 }

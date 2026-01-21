@@ -17,31 +17,17 @@ struct MoreTabView: View {
                     .ignoresSafeArea()
 
                 VStack(spacing: 16) {
-                    // 开发测试入口
-                    NavigationLink(destination: TestMenuView()) {
-                        HStack {
-                            Image(systemName: "hammer.fill")
-                                .font(.title2)
-                                .foregroundColor(ApocalypseTheme.primary)
-                                .frame(width: 40)
+                    Spacer()
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(languageManager.localizedString("开发测试"))
-                                    .font(.headline)
-                                    .foregroundColor(ApocalypseTheme.textPrimary)
-                                Text(languageManager.localizedString("查看调试信息和测试功能"))
-                                    .font(.caption)
-                                    .foregroundColor(ApocalypseTheme.textSecondary)
-                            }
+                    // 敬请期待
+                    VStack(spacing: 16) {
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 50))
+                            .foregroundColor(ApocalypseTheme.textMuted)
 
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(ApocalypseTheme.textMuted)
-                        }
-                        .padding()
-                        .background(ApocalypseTheme.cardBackground)
-                        .cornerRadius(12)
+                        Text(languageManager.localizedString("敬请期待"))
+                            .font(.headline)
+                            .foregroundColor(ApocalypseTheme.textSecondary)
                     }
 
                     Spacer()

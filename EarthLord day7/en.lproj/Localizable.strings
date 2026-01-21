@@ -197,3 +197,32 @@
 "速度" = "Speed";
 "时长" = "Duration";
 "速度过快" = "Too Fast";
+
+/* Exploration Result */
+"探索报告" = "Exploration Report";
+"探索失败" = "Exploration Failed";
+"探索完成！" = "Exploration Complete!";
+"奖励等级" = "Reward Level";
+"无奖励" = "No Reward";
+"行走距离不足200米，无法获得奖励" = "Distance less than 200m, no reward";
+"物资已添加到背包" = "Items added to backpack";
+"探索统计" = "Exploration Stats";
+"分" = "min";
+"秒" = "sec";
+"行走距离" = "Distance Walked";
+"获得物品" = "Items Obtained";
+"种" = "types";
+"已添加到背包" = "Added to backpack";
+"行走距离不足，没有获得物品" = "Distance insufficient, no items";
+"走满200米可获得铜级奖励" = "Walk 200m for bronze reward";
+"确认收下" = "Confirm";
+"重试" = "Retry";
+"返回" = "Back";
+"未知错误" = "Unknown error";
+"普通" = "Common";
+"稀有" = "Rare";
+"史诗" = "Epic";
+"铜级" = "Bronze";
+"银级" = "Silver";
+"金级" = "Gold";
+"钻石级" = "Diamond";

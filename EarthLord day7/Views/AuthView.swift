@@ -555,24 +555,6 @@ struct AuthView: View {
                     .frame(height: 1)
             }
 
-            // Apple 登录按钮
-            Button {
-                Task {
-                    await authManager.signInWithApple()
-                }
-            } label: {
-                HStack {
-                    Image(systemName: "apple.logo")
-                    Text(languageManager.localizedString("使用 Apple 登录"))
-                }
-                .font(.headline)
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.black)
-                .cornerRadius(12)
-            }
-
             // Google 登录按钮
             Button {
                 Task {
