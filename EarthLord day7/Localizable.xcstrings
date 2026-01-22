@@ -39,6 +39,9 @@
     "%lldm" : {
 
     },
+    "© 2025 Earth Lord" : {
+
+    },
     "+%lld" : {
 
     },
@@ -63,6 +66,9 @@
           }
         }
       }
+    },
+    "Earth Lord" : {
+
     },
     "EARTH LORD" : {
       "comment" : "通用",
@@ -264,6 +270,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用 Google 登录"
+          }
+        }
+      }
+    },
+    "保留所有权利" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All rights reserved"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留所有权利"
           }
         }
       }
@@ -1332,6 +1355,23 @@
         }
       }
     },
+    "技术支持" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Technical Support"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "技术支持"
+          }
+        }
+      }
+    },
     "探索" : {
       "comment" : "统计信息",
       "extractionState" : "manual",
@@ -2138,6 +2178,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "点击搜索按钮发现周围的废墟"
+          }
+        }
+      }
+    },
+    "版本 %@（%@）" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %1$@ (%2$@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "版本 %1$@（%2$@）"
           }
         }
       }
@@ -3356,6 +3413,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "附近暂无兴趣点"
+          }
+        }
+      }
+    },
+    "隐私政策" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy Policy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私政策"
           }
         }
       }

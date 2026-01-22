@@ -243,9 +243,26 @@ struct ProfileTabView: View {
                 .background(ApocalypseTheme.textMuted.opacity(0.2))
                 .padding(.horizontal)
 
-            menuItem(icon: "info.circle.fill", iconColor: .green, title: languageManager.localizedString("关于")) {
-                // TODO: 导航到关于页面
-                print("点击关于")
+            // 关于 - 使用 NavigationLink
+            NavigationLink(destination: AboutView()) {
+                HStack(spacing: 16) {
+                    Image(systemName: "info.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.green)
+                        .frame(width: 30)
+
+                    Text(languageManager.localizedString("关于"))
+                        .font(.body)
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.textMuted)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
             }
         }
         .background(ApocalypseTheme.cardBackground)
