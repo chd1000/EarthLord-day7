@@ -11,6 +11,9 @@ import SwiftUI
 /// 搜刮结果视图
 struct ScavengeResultView: View {
 
+    // MARK: - 环境
+    @EnvironmentObject private var languageManager: LanguageManager
+
     // MARK: - 属性
 
     /// 搜刮结果
@@ -46,7 +49,7 @@ struct ScavengeResultView: View {
                 }
 
                 HStack(spacing: 4) {
-                    Text("搜刮成功!")
+                    Text(languageManager.localizedString("搜刮成功!"))
                         .font(.title2)
                         .fontWeight(.bold)
 
@@ -70,7 +73,7 @@ struct ScavengeResultView: View {
                     Image(systemName: "tray")
                         .font(.system(size: 40))
                         .foregroundColor(.gray)
-                    Text("这里什么都没有...")
+                    Text(languageManager.localizedString("这里什么都没有..."))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -78,14 +81,14 @@ struct ScavengeResultView: View {
             } else {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Text("获得物品")
+                        Text(languageManager.localizedString("获得物品"))
                             .font(.headline)
                             .foregroundColor(.secondary)
 
                         Spacer()
 
                         if result.isAIGenerated {
-                            Text("AI 生成")
+                            Text(languageManager.localizedString("AI 生成"))
                                 .font(.caption2)
                                 .foregroundColor(.purple)
                                 .padding(.horizontal, 6)
@@ -123,7 +126,7 @@ struct ScavengeResultView: View {
 
             // 确认按钮
             Button(action: onDismiss) {
-                Text("太棒了!")
+                Text(languageManager.localizedString("太棒了!"))
                     .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -162,6 +165,8 @@ struct ScavengeResultView: View {
 
 /// 单个搜刮物品行
 struct ScavengedItemRow: View {
+
+    @EnvironmentObject private var languageManager: LanguageManager
 
     let item: ScavengeResult.ScavengedItem
     let isExpanded: Bool
@@ -279,26 +284,26 @@ struct ScavengedItemRow: View {
     /// 稀有度文本
     private var rarityText: String {
         switch item.rarity {
-        case "common": return "普通"
-        case "uncommon": return "少见"
-        case "rare": return "稀有"
-        case "epic": return "史诗"
-        case "legendary": return "传说"
-        default: return "未知"
+        case "common": return languageManager.localizedString("普通")
+        case "uncommon": return languageManager.localizedString("少见")
+        case "rare": return languageManager.localizedString("稀有")
+        case "epic": return languageManager.localizedString("史诗")
+        case "legendary": return languageManager.localizedString("传说")
+        default: return languageManager.localizedString("未知")
         }
     }
 
     /// 类别文本
     private var categoryText: String {
         switch item.category {
-        case "food": return "食物"
-        case "medical": return "医疗"
-        case "tool": return "工具"
-        case "material": return "材料"
-        case "equipment": return "装备"
-        case "water": return "水类"
-        case "weapon": return "武器"
-        default: return "杂项"
+        case "food": return languageManager.localizedString("食物")
+        case "medical": return languageManager.localizedString("医疗")
+        case "tool": return languageManager.localizedString("工具")
+        case "material": return languageManager.localizedString("材料")
+        case "equipment": return languageManager.localizedString("装备")
+        case "water": return languageManager.localizedString("水类")
+        case "weapon": return languageManager.localizedString("武器")
+        default: return languageManager.localizedString("杂项")
         }
     }
 }

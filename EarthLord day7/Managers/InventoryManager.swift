@@ -226,11 +226,32 @@ class InventoryManager: ObservableObject {
         return itemDefinitions[itemId]
     }
 
-    /// 计算背包总重量（普通物品）
+    /// 计算背包总重量（普通物品 + AI物品）
     var totalWeight: Double {
-        inventoryItems.reduce(0) { total, item in
+        // 普通物品重量
+        let normalWeight = inventoryItems.reduce(0) { total, item in
             let weight = itemDefinitions[item.itemId]?.weight ?? 0
             return total + weight * Double(item.quantity)
+        }
+        // AI物品重量（根据类别估算）
+        let aiWeight = aiInventoryItems.reduce(0) { total, item in
+            let weight = estimateAIItemWeight(category: item.category)
+            return total + weight * Double(item.quantity)
+        }
+        return normalWeight + aiWeight
+    }
+
+    /// 根据类别估算AI物品重量
+    private func estimateAIItemWeight(category: String) -> Double {
+        switch category {
+        case "food": return 0.3      // 食物 0.3kg
+        case "medical": return 0.2   // 医疗 0.2kg
+        case "tool": return 0.5      // 工具 0.5kg
+        case "material": return 0.4  // 材料 0.4kg
+        case "equipment": return 0.8 // 装备 0.8kg
+        case "water": return 0.5     // 水类 0.5kg
+        case "weapon": return 1.0    // 武器 1.0kg
+        default: return 0.3          // 默认 0.3kg
         }
     }
 

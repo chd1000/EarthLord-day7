@@ -10,6 +10,9 @@ import SwiftUI
 
 struct BackpackView: View {
 
+    // MARK: - 环境
+    @EnvironmentObject private var languageManager: LanguageManager
+
     // MARK: - 状态
 
     /// 背包管理器
@@ -110,7 +113,7 @@ struct BackpackView: View {
                 VStack(spacing: 16) {
                     ProgressView()
                         .scaleEffect(1.2)
-                    Text("加载背包...")
+                    Text(languageManager.localizedString("加载背包..."))
                         .font(.system(size: 14))
                         .foregroundColor(ApocalypseTheme.textSecondary)
                 }
@@ -136,7 +139,7 @@ struct BackpackView: View {
                 }
             }
         }
-        .navigationTitle("背包")
+        .navigationTitle(languageManager.localizedString("背包"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             // 加载背包数据
@@ -179,7 +182,7 @@ struct BackpackView: View {
                 Image(systemName: "bag.fill")
                     .foregroundColor(ApocalypseTheme.primary)
 
-                Text("背包容量")
+                Text(languageManager.localizedString("背包容量"))
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(ApocalypseTheme.textPrimary)
 
@@ -215,7 +218,7 @@ struct BackpackView: View {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 12))
 
-                    Text("背包快满了！")
+                    Text(languageManager.localizedString("背包快满了！"))
                         .font(.system(size: 13, weight: .medium))
                 }
                 .foregroundColor(ApocalypseTheme.danger)
@@ -239,7 +242,7 @@ struct BackpackView: View {
                 .foregroundColor(ApocalypseTheme.textMuted)
                 .font(.system(size: 16))
 
-            TextField("搜索物品...", text: $searchText)
+            TextField(languageManager.localizedString("搜索物品..."), text: $searchText)
                 .font(.system(size: 15))
                 .foregroundColor(ApocalypseTheme.textPrimary)
 
@@ -269,7 +272,7 @@ struct BackpackView: View {
             HStack(spacing: 10) {
                 // 全部
                 CategoryChip(
-                    title: "全部",
+                    title: languageManager.localizedString("全部"),
                     icon: "square.grid.2x2.fill",
                     color: ApocalypseTheme.primary,
                     isSelected: selectedCategory == nil
@@ -281,7 +284,7 @@ struct BackpackView: View {
 
                 // 食物
                 CategoryChip(
-                    title: "食物",
+                    title: languageManager.localizedString("食物"),
                     icon: "fork.knife",
                     color: .orange,
                     isSelected: selectedCategory == "food"
@@ -293,7 +296,7 @@ struct BackpackView: View {
 
                 // 材料
                 CategoryChip(
-                    title: "材料",
+                    title: languageManager.localizedString("材料"),
                     icon: "cube.fill",
                     color: .brown,
                     isSelected: selectedCategory == "material"
@@ -305,7 +308,7 @@ struct BackpackView: View {
 
                 // 工具
                 CategoryChip(
-                    title: "工具",
+                    title: languageManager.localizedString("工具"),
                     icon: "wrench.and.screwdriver.fill",
                     color: .gray,
                     isSelected: selectedCategory == "tool"
@@ -317,7 +320,7 @@ struct BackpackView: View {
 
                 // 医疗
                 CategoryChip(
-                    title: "医疗",
+                    title: languageManager.localizedString("医疗"),
                     icon: "cross.case.fill",
                     color: .red,
                     isSelected: selectedCategory == "medical"
@@ -329,7 +332,7 @@ struct BackpackView: View {
 
                 // 装备
                 CategoryChip(
-                    title: "装备",
+                    title: languageManager.localizedString("装备"),
                     icon: "shield.fill",
                     color: .purple,
                     isSelected: selectedCategory == "equipment"
@@ -361,7 +364,7 @@ struct BackpackView: View {
                                 .font(.system(size: 12))
                                 .foregroundColor(.purple)
 
-                            Text("AI 生成物品")
+                            Text(languageManager.localizedString("AI 生成物品"))
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(.purple)
 
@@ -395,7 +398,7 @@ struct BackpackView: View {
                                     .font(.system(size: 12))
                                     .foregroundColor(ApocalypseTheme.textMuted)
 
-                                Text("普通物品")
+                                Text(languageManager.localizedString("普通物品"))
                                     .font(.system(size: 13, weight: .medium))
                                     .foregroundColor(ApocalypseTheme.textSecondary)
 
@@ -441,11 +444,11 @@ struct BackpackView: View {
                     .font(.system(size: 60))
                     .foregroundColor(ApocalypseTheme.textMuted)
 
-                Text("背包空空如也")
+                Text(languageManager.localizedString("背包空空如也"))
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(ApocalypseTheme.textSecondary)
 
-                Text("去探索收集物资吧")
+                Text(languageManager.localizedString("去探索收集物资吧"))
                     .font(.system(size: 14))
                     .foregroundColor(ApocalypseTheme.textMuted)
             } else {
@@ -454,11 +457,11 @@ struct BackpackView: View {
                     .font(.system(size: 60))
                     .foregroundColor(ApocalypseTheme.textMuted)
 
-                Text("没有找到相关物品")
+                Text(languageManager.localizedString("没有找到相关物品"))
                     .font(.system(size: 18, weight: .medium))
                     .foregroundColor(ApocalypseTheme.textSecondary)
 
-                Text("试试其他搜索词或分类")
+                Text(languageManager.localizedString("试试其他搜索词或分类"))
                     .font(.system(size: 14))
                     .foregroundColor(ApocalypseTheme.textMuted)
             }
@@ -507,6 +510,8 @@ struct CategoryChip: View {
 
 /// 背包物品卡片
 struct BackpackItemCard: View {
+    @EnvironmentObject private var languageManager: LanguageManager
+
     let item: DBInventoryItem
     let definition: DBItemDefinition
     let onUse: () -> Void
@@ -593,7 +598,7 @@ struct BackpackItemCard: View {
                 Button {
                     onUse()
                 } label: {
-                    Text("使用")
+                    Text(languageManager.localizedString("使用"))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.white)
                         .padding(.horizontal, 12)
@@ -608,7 +613,7 @@ struct BackpackItemCard: View {
                 Button {
                     // TODO: 实现存储逻辑
                 } label: {
-                    Text("存储")
+                    Text(languageManager.localizedString("存储"))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(ApocalypseTheme.textSecondary)
                         .padding(.horizontal, 12)
@@ -632,6 +637,8 @@ struct BackpackItemCard: View {
 
 /// AI 背包物品卡片
 struct AIBackpackItemCard: View {
+    @EnvironmentObject private var languageManager: LanguageManager
+
     let item: DBAIInventoryItem
     let onUse: () -> Void
 
@@ -725,7 +732,7 @@ struct AIBackpackItemCard: View {
                     Button {
                         onUse()
                     } label: {
-                        Text("使用")
+                        Text(languageManager.localizedString("使用"))
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.white)
                             .padding(.horizontal, 12)
@@ -771,7 +778,7 @@ struct AIBackpackItemCard: View {
                         HStack(spacing: 4) {
                             Image(systemName: "mappin.circle.fill")
                                 .font(.system(size: 10))
-                            Text("来自: \(poiName)")
+                            Text(languageManager.localizedString("来自:") + " \(poiName)")
                                 .font(.system(size: 10))
                         }
                         .foregroundColor(ApocalypseTheme.textMuted)

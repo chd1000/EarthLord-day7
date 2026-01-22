@@ -11,6 +11,9 @@ import SwiftUI
 /// POI接近弹窗
 struct POIProximityPopup: View {
 
+    // MARK: - 环境
+    @EnvironmentObject private var languageManager: LanguageManager
+
     // MARK: - 属性
 
     /// 当前POI
@@ -58,7 +61,7 @@ struct POIProximityPopup: View {
 
                         // 类型和距离
                         HStack(spacing: 8) {
-                            Text(poi.type.displayName)
+                            Text(poi.type.localizedName(languageManager))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                                 .padding(.horizontal, 8)
@@ -67,7 +70,7 @@ struct POIProximityPopup: View {
                                 .cornerRadius(4)
 
                             if let distance = poi.distanceFromUser {
-                                Text("\(Int(distance))米")
+                                Text("\(Int(distance))" + languageManager.localizedString("米"))
                                     .font(.caption)
                                     .foregroundColor(.orange)
                             }
@@ -90,7 +93,7 @@ struct POIProximityPopup: View {
                     HStack(spacing: 4) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundColor(dangerColor)
-                        Text("危险等级")
+                        Text(languageManager.localizedString("危险等级"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Text("\(poi.dangerLevel)/5")
@@ -106,7 +109,7 @@ struct POIProximityPopup: View {
                     HStack(spacing: 4) {
                         Image(systemName: poi.hasLoot ? "archivebox.fill" : "archivebox")
                             .foregroundColor(poi.hasLoot ? .green : .gray)
-                        Text(poi.hasLoot ? "有物资" : "已搜刮")
+                        Text(poi.hasLoot ? languageManager.localizedString("有物资") : languageManager.localizedString("已搜刮"))
                             .font(.caption)
                             .foregroundColor(poi.hasLoot ? .green : .gray)
                     }
@@ -132,10 +135,10 @@ struct POIProximityPopup: View {
                             ProgressView()
                                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                                 .scaleEffect(0.8)
-                            Text("搜刮中...")
+                            Text(languageManager.localizedString("搜刮中..."))
                         } else {
                             Image(systemName: "hand.point.up.left.fill")
-                            Text("开始搜刮")
+                            Text(languageManager.localizedString("开始搜刮"))
                         }
                     }
                     .font(.headline)

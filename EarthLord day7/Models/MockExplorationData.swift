@@ -44,6 +44,11 @@ enum POIType: String, Codable {
         case .military: return "军事设施"
         }
     }
+
+    /// 获取本地化显示名称
+    func localizedName(_ languageManager: LanguageManager) -> String {
+        return languageManager.localizedString(displayName)
+    }
 }
 
 // MARK: - POI 数据模型
