@@ -31,100 +31,105 @@ struct ScavengeResultView: View {
     // MARK: - 视图
 
     var body: some View {
-        VStack(spacing: 24) {
-            // 成功图标
-            VStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(LinearGradient(
-                            colors: [.orange.opacity(0.3), .yellow.opacity(0.2)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
-                        .frame(width: 100, height: 100)
+        VStack(spacing: 0) {
+            // 可滚动内容区域
+            ScrollView {
+                VStack(spacing: 24) {
+                    // 成功图标
+                    VStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(LinearGradient(
+                                    colors: [.orange.opacity(0.3), .yellow.opacity(0.2)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ))
+                                .frame(width: 100, height: 100)
 
-                    Image(systemName: "archivebox.fill")
-                        .font(.system(size: 44))
-                        .foregroundColor(.orange)
-                }
-
-                HStack(spacing: 4) {
-                    Text(languageManager.localizedString("搜刮成功!"))
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    // AI 生成标记
-                    if result.isAIGenerated {
-                        Image(systemName: "sparkles")
-                            .font(.caption)
-                            .foregroundColor(.purple)
-                    }
-                }
-
-                Text(result.poiName)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.top, 20)
-
-            // 获得物品列表
-            if result.items.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "tray")
-                        .font(.system(size: 40))
-                        .foregroundColor(.gray)
-                    Text(languageManager.localizedString("这里什么都没有..."))
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.vertical, 30)
-            } else {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text(languageManager.localizedString("获得物品"))
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-
-                        Spacer()
-
-                        if result.isAIGenerated {
-                            Text(languageManager.localizedString("AI 生成"))
-                                .font(.caption2)
-                                .foregroundColor(.purple)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.purple.opacity(0.1))
-                                .cornerRadius(4)
+                            Image(systemName: "archivebox.fill")
+                                .font(.system(size: 44))
+                                .foregroundColor(.orange)
                         }
-                    }
 
-                    ForEach(Array(result.items.enumerated()), id: \.element.id) { index, item in
-                        ScavengedItemRow(
-                            item: item,
-                            isExpanded: expandedItemIndex == index,
-                            onTap: {
-                                withAnimation(.spring(response: 0.3)) {
-                                    if expandedItemIndex == index {
-                                        expandedItemIndex = nil
-                                    } else {
-                                        expandedItemIndex = index
-                                    }
+                        HStack(spacing: 4) {
+                            Text(languageManager.localizedString("搜刮成功!"))
+                                .font(.title2)
+                                .fontWeight(.bold)
+
+                            // AI 生成标记
+                            if result.isAIGenerated {
+                                Image(systemName: "sparkles")
+                                    .font(.caption)
+                                    .foregroundColor(.purple)
+                            }
+                        }
+
+                        Text(result.poiName)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 20)
+
+                    // 获得物品列表
+                    if result.items.isEmpty {
+                        VStack(spacing: 8) {
+                            Image(systemName: "tray")
+                                .font(.system(size: 40))
+                                .foregroundColor(.gray)
+                            Text(languageManager.localizedString("这里什么都没有..."))
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 30)
+                    } else {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text(languageManager.localizedString("获得物品"))
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+
+                                Spacer()
+
+                                if result.isAIGenerated {
+                                    Text(languageManager.localizedString("AI 生成"))
+                                        .font(.caption2)
+                                        .foregroundColor(.purple)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.purple.opacity(0.1))
+                                        .cornerRadius(4)
                                 }
                             }
-                        )
-                        .opacity(showItems.indices.contains(index) && showItems[index] ? 1 : 0)
-                        .offset(x: showItems.indices.contains(index) && showItems[index] ? 0 : -30)
-                        .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(Double(index) * 0.15), value: showItems)
+
+                            ForEach(Array(result.items.enumerated()), id: \.element.id) { index, item in
+                                ScavengedItemRow(
+                                    item: item,
+                                    isExpanded: expandedItemIndex == index,
+                                    onTap: {
+                                        withAnimation(.spring(response: 0.3)) {
+                                            if expandedItemIndex == index {
+                                                expandedItemIndex = nil
+                                            } else {
+                                                expandedItemIndex = index
+                                            }
+                                        }
+                                    }
+                                )
+                                .opacity(showItems.indices.contains(index) && showItems[index] ? 1 : 0)
+                                .offset(x: showItems.indices.contains(index) && showItems[index] ? 0 : -30)
+                                .animation(.spring(response: 0.5, dampingFraction: 0.7).delay(Double(index) * 0.15), value: showItems)
+                            }
+                        }
+                        .padding()
+                        .background(Color.secondary.opacity(0.05))
+                        .cornerRadius(12)
                     }
                 }
-                .padding()
-                .background(Color.secondary.opacity(0.05))
-                .cornerRadius(12)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 16)
             }
 
-            Spacer()
-
-            // 确认按钮
+            // 确认按钮 - 固定在底部
             Button(action: onDismiss) {
                 Text(languageManager.localizedString("太棒了!"))
                     .font(.headline)
@@ -140,8 +145,9 @@ struct ScavengeResultView: View {
                     )
                     .cornerRadius(12)
             }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
         }
-        .padding(24)
         .background(Color(.systemBackground))
         .onAppear {
             // 初始化动画状态
