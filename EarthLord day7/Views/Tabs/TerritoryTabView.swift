@@ -64,6 +64,18 @@ struct TerritoryTabView: View {
                     }
                 )
             }
+            // 监听领地更新通知
+            .onReceive(NotificationCenter.default.publisher(for: .territoryUpdated)) { _ in
+                Task {
+                    await loadMyTerritories()
+                }
+            }
+            // 监听领地删除通知
+            .onReceive(NotificationCenter.default.publisher(for: .territoryDeleted)) { _ in
+                Task {
+                    await loadMyTerritories()
+                }
+            }
         }
     }
 

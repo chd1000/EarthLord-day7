@@ -252,3 +252,58 @@ struct BuildCheckResult {
         BuildCheckResult(canBuild: false, missingResources: [:], currentCount: currentCount, maxCount: maxCount)
     }
 }
+
+// MARK: - PlayerBuilding 扩展
+
+import CoreLocation
+
+extension PlayerBuilding {
+
+    /// 建造进度 (0.0 ~ 1.0)
+    /// 如果已完成或状态为 active，返回 1.0
+    var buildProgress: Double {
+        guard statusEnum == .constructing,
+              let startedAt = buildStartedAt,
+              let completedAt = buildCompletedAt else {
+            return 1.0
+        }
+
+        let totalTime = completedAt.timeIntervalSince(startedAt)
+        let elapsedTime = Date().timeIntervalSince(startedAt)
+
+        guard totalTime > 0 else { return 1.0 }
+
+        return min(1.0, max(0.0, elapsedTime / totalTime))
+    }
+
+    /// 格式化剩余时间 (如 "5m 30s" 或 "1h 30m")
+    var formattedRemainingTime: String {
+        guard let completedAt = buildCompletedAt else { return "" }
+
+        let remaining = completedAt.timeIntervalSince(Date())
+
+        if remaining <= 0 {
+            return String(localized: "building_time_complete")
+        }
+
+        let hours = Int(remaining) / 3600
+        let minutes = (Int(remaining) % 3600) / 60
+        let seconds = Int(remaining) % 60
+
+        if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else if minutes > 0 {
+            return "\(minutes)m \(seconds)s"
+        } else {
+            return "\(seconds)s"
+        }
+    }
+
+    /// 坐标（便捷属性）
+    var coordinate: CLLocationCoordinate2D? {
+        guard let lat = locationLat, let lon = locationLon else {
+            return nil
+        }
+        return CLLocationCoordinate2D(latitude: lat, longitude: lon)
+    }
+}

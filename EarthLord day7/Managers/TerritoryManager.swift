@@ -11,6 +11,15 @@ import CoreLocation
 import Combine
 import Supabase
 
+// MARK: - 领地通知
+
+extension Notification.Name {
+    /// 领地数据更新通知
+    static let territoryUpdated = Notification.Name("territoryUpdated")
+    /// 领地删除通知
+    static let territoryDeleted = Notification.Name("territoryDeleted")
+}
+
 /// 领地管理器
 @MainActor
 class TerritoryManager: ObservableObject {
@@ -301,11 +310,49 @@ class TerritoryManager: ObservableObject {
             // 从本地列表中移除
             territories.removeAll { $0.id == territoryId }
 
+            // 发送删除通知
+            NotificationCenter.default.post(name: .territoryDeleted, object: nil)
+
             return true
 
         } catch {
             print("❌ [删除领地] 删除失败: \(error)")
             TerritoryLogger.shared.log("删除领地失败: \(error.localizedDescription)", type: .error)
+            return false
+        }
+    }
+
+    /// 重命名领地
+    /// - Parameters:
+    ///   - territoryId: 领地 ID
+    ///   - newName: 新名称
+    /// - Returns: 是否更新成功
+    func updateTerritoryName(territoryId: UUID, newName: String) async -> Bool {
+        print("✏️ [重命名领地] ID: \(territoryId), 新名称: \(newName)")
+
+        do {
+            try await supabase
+                .from("territories")
+                .update(["name": newName])
+                .eq("id", value: territoryId.uuidString)
+                .execute()
+
+            print("✅ [重命名领地] 更新成功")
+            TerritoryLogger.shared.log("领地重命名: \(newName)", type: .info)
+
+            // 更新本地列表
+            if let index = territories.firstIndex(where: { $0.id == territoryId }) {
+                territories[index].name = newName
+            }
+
+            // 发送更新通知
+            NotificationCenter.default.post(name: .territoryUpdated, object: nil)
+
+            return true
+
+        } catch {
+            print("❌ [重命名领地] 更新失败: \(error)")
+            TerritoryLogger.shared.log("重命名领地失败: \(error.localizedDescription)", type: .error)
             return false
         }
     }

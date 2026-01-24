@@ -10,6 +10,13 @@ import Foundation
 import Combine
 import Supabase
 
+// MARK: - 建筑通知
+
+extension Notification.Name {
+    /// 建筑数据更新通知
+    static let buildingUpdated = Notification.Name("buildingUpdated")
+}
+
 /// 建筑管理器
 @MainActor
 class BuildingManager: ObservableObject {
@@ -372,6 +379,35 @@ class BuildingManager: ObservableObject {
         return playerBuildings.filter {
             $0.territoryId == territoryId && $0.templateId == templateId
         }.count
+    }
+
+    // MARK: - 拆除操作
+
+    /// 拆除建筑
+    /// - Parameter buildingId: 建筑 ID
+    func demolishBuilding(buildingId: UUID) async throws {
+        guard let index = playerBuildings.firstIndex(where: { $0.id == buildingId }) else {
+            throw BuildingError.databaseError("建筑不存在")
+        }
+
+        let building = playerBuildings[index]
+
+        do {
+            try await supabase
+                .from("player_buildings")
+                .delete()
+                .eq("id", value: buildingId.uuidString)
+                .execute()
+
+            playerBuildings.remove(at: index)
+            print("🗑️ 建筑已拆除: \(building.buildingName)")
+
+            // 发送建筑更新通知
+            NotificationCenter.default.post(name: .buildingUpdated, object: nil)
+        } catch {
+            print("❌ 拆除建筑失败: \(error)")
+            throw BuildingError.databaseError(error.localizedDescription)
+        }
     }
 
     // MARK: - 辅助方法

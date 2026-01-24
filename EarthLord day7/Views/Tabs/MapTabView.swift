@@ -21,6 +21,7 @@ struct MapTabView: View {
     @StateObject private var locationManager = LocationManager.shared
     @StateObject private var territoryManager = TerritoryManager.shared
     @StateObject private var explorationManager = ExplorationManager.shared
+    @StateObject private var buildingManager = BuildingManager.shared
 
     /// 已加载的领地列表
     @State private var territories: [Territory] = []
@@ -55,6 +56,9 @@ struct MapTabView: View {
     @State private var collisionWarning: String?
     @State private var showCollisionWarning = false
     @State private var collisionWarningLevel: WarningLevel = .safe
+
+    // MARK: - 建筑显示状态
+    @State private var buildingUpdateVersion: Int = 0
 
     /// 当前用户 ID（用于碰撞检测）
     private var currentUserId: String? {
@@ -248,6 +252,10 @@ struct MapTabView: View {
                 .presentationDetents([.medium])
             }
         }
+        // 监听建筑更新通知
+        .onReceive(NotificationCenter.default.publisher(for: .buildingUpdated)) { _ in
+            buildingUpdateVersion += 1
+        }
     }
 
     // MARK: - 地图视图
@@ -269,7 +277,11 @@ struct MapTabView: View {
             currentUserId: authManager.currentUser?.id.uuidString,
             // POI参数
             nearbyPOIs: explorationManager.nearbyPOIs,
-            poiUpdateVersion: explorationManager.poiUpdateVersion
+            poiUpdateVersion: explorationManager.poiUpdateVersion,
+            // 建筑参数
+            buildings: buildingManager.playerBuildings,
+            buildingTemplates: buildingManager.buildingTemplates,
+            buildingUpdateVersion: buildingUpdateVersion
         )
         .ignoresSafeArea(edges: .top)  // 只忽略顶部安全区域，保留底部 Tab 栏
     }
@@ -691,6 +703,15 @@ struct MapTabView: View {
         // 加载领地数据
         Task {
             await loadTerritories()
+        }
+
+        // 加载建筑数据和模板
+        Task {
+            if buildingManager.buildingTemplates.isEmpty {
+                buildingManager.loadTemplates()
+            }
+            await buildingManager.fetchPlayerBuildings()
+            buildingUpdateVersion += 1
         }
     }
 
