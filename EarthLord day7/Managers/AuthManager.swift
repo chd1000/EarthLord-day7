@@ -9,6 +9,8 @@ import SwiftUI
 import Combine
 import Supabase
 import GoogleSignIn
+import AuthenticationServices
+import CryptoKit
 
 /// 认证管理器
 /// 负责用户注册、登录、找回密码、第三方登录等认证相关功能
@@ -401,14 +403,125 @@ class AuthManager: ObservableObject {
         isLoading = false
     }
 
-    // MARK: - 第三方登录（预留）
+    // MARK: - 第三方登录
 
     /// Apple 登录
-    /// TODO: 实现 Apple Sign In
+    /// 使用 AuthenticationServices 获取 identityToken，然后通过 Supabase 验证
     func signInWithApple() async {
-        // TODO: 实现 Apple 登录
-        errorMessage = "Apple 登录功能即将推出"
-        print("⚠️ Apple 登录尚未实现")
+        print("🍎 [Apple登录] 开始 Apple 登录流程...")
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            // 生成随机 nonce 用于安全验证
+            let nonce = randomNonceString()
+            let hashedNonce = sha256(nonce)
+
+            // 创建 Apple ID 请求
+            let appleIDProvider = ASAuthorizationAppleIDProvider()
+            let request = appleIDProvider.createRequest()
+            request.requestedScopes = [.fullName, .email]
+            request.nonce = hashedNonce
+
+            print("🍎 [Apple登录] 正在请求 Apple 授权...")
+
+            // 执行授权请求
+            let result = try await performAppleSignIn(request: request)
+
+            guard let appleIDCredential = result.credential as? ASAuthorizationAppleIDCredential else {
+                print("❌ [Apple登录] 无法获取 Apple ID 凭证")
+                errorMessage = "Apple 登录失败: 无法获取凭证"
+                isLoading = false
+                return
+            }
+
+            print("✅ [Apple登录] Apple 授权成功")
+            print("🍎 [Apple登录] 用户ID: \(appleIDCredential.user)")
+
+            // 获取 identityToken
+            guard let identityTokenData = appleIDCredential.identityToken,
+                  let identityToken = String(data: identityTokenData, encoding: .utf8) else {
+                print("❌ [Apple登录] 无法获取 identityToken")
+                errorMessage = "Apple 登录失败: 无法获取令牌"
+                isLoading = false
+                return
+            }
+
+            print("🍎 [Apple登录] 成功获取 identityToken，正在向 Supabase 验证...")
+
+            // 使用 identityToken 向 Supabase 进行身份验证
+            let session = try await supabase.auth.signInWithIdToken(
+                credentials: .init(
+                    provider: .apple,
+                    idToken: identityToken,
+                    nonce: nonce
+                )
+            )
+
+            currentUser = session.user
+            isAuthenticated = true
+            needsPasswordSetup = false
+
+            print("✅ [Apple登录] Supabase 验证成功!")
+            print("✅ [Apple登录] 用户ID: \(session.user.id)")
+            print("✅ [Apple登录] 用户邮箱: \(session.user.email ?? "未知")")
+
+        } catch let error as ASAuthorizationError where error.code == .canceled {
+            // 用户取消登录，不显示错误
+            print("ℹ️ [Apple登录] 用户取消了登录")
+        } catch let error as ASAuthorizationError {
+            // 其他 Apple Sign-In 错误
+            print("❌ [Apple登录] 授权失败: \(error.localizedDescription)")
+            errorMessage = "Apple 登录失败"
+        } catch {
+            print("❌ [Apple登录] 登录失败: \(error)")
+            print("❌ [Apple登录] 错误详情: \(String(describing: error))")
+            errorMessage = "Apple 登录失败: \(error.localizedDescription)"
+        }
+
+        isLoading = false
+    }
+
+    /// 执行 Apple Sign In 请求
+    /// 使用 async/await 包装 ASAuthorizationController
+    private func performAppleSignIn(request: ASAuthorizationAppleIDRequest) async throws -> ASAuthorization {
+        return try await withCheckedThrowingContinuation { continuation in
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            let delegate = AppleSignInDelegate(continuation: continuation)
+
+            // 保持 delegate 引用
+            objc_setAssociatedObject(controller, "delegate", delegate, .OBJC_ASSOCIATION_RETAIN)
+
+            controller.delegate = delegate
+            controller.presentationContextProvider = delegate
+            controller.performRequests()
+        }
+    }
+
+    /// 生成随机 nonce 字符串
+    private func randomNonceString(length: Int = 32) -> String {
+        precondition(length > 0)
+        var randomBytes = [UInt8](repeating: 0, count: length)
+        let errorCode = SecRandomCopyBytes(kSecRandomDefault, randomBytes.count, &randomBytes)
+        if errorCode != errSecSuccess {
+            fatalError("Unable to generate nonce. SecRandomCopyBytes failed with OSStatus \(errorCode)")
+        }
+
+        let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        let nonce = randomBytes.map { byte in
+            charset[Int(byte) % charset.count]
+        }
+        return String(nonce)
+    }
+
+    /// SHA256 哈希
+    private func sha256(_ input: String) -> String {
+        let inputData = Data(input.utf8)
+        let hashedData = SHA256.hash(data: inputData)
+        let hashString = hashedData.compactMap {
+            String(format: "%02x", $0)
+        }.joined()
+        return hashString
     }
 
     /// Google 登录
@@ -628,5 +741,38 @@ class AuthManager: ObservableObject {
 
             print("ℹ️ 没有有效会话")
         }
+    }
+}
+
+// MARK: - Apple Sign In Delegate
+
+/// Apple Sign In 代理类
+/// 用于桥接 ASAuthorizationController 的 delegate 模式到 async/await
+private class AppleSignInDelegate: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+
+    private let continuation: CheckedContinuation<ASAuthorization, Error>
+
+    init(continuation: CheckedContinuation<ASAuthorization, Error>) {
+        self.continuation = continuation
+    }
+
+    // MARK: - ASAuthorizationControllerDelegate
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        continuation.resume(returning: authorization)
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        continuation.resume(throwing: error)
+    }
+
+    // MARK: - ASAuthorizationControllerPresentationContextProviding
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = windowScene.windows.first else {
+            return UIWindow()
+        }
+        return window
     }
 }

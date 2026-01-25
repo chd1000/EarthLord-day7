@@ -537,7 +537,7 @@ struct AuthView: View {
     // MARK: - 第三方登录
 
     private var thirdPartyLoginView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             // 分隔线
             HStack(spacing: 12) {
                 Rectangle()
@@ -555,14 +555,34 @@ struct AuthView: View {
                     .frame(height: 1)
             }
 
+            // Apple 登录按钮
+            Button {
+                Task {
+                    await authManager.signInWithApple()
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "apple.logo")
+                        .font(.system(size: 18, weight: .medium))
+                    Text(languageManager.localizedString("使用 Apple 登录"))
+                }
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.black)
+                .cornerRadius(12)
+            }
+
             // Google 登录按钮
             Button {
                 Task {
                     await authManager.signInWithGoogle()
                 }
             } label: {
-                HStack {
+                HStack(spacing: 8) {
                     Image(systemName: "g.circle.fill")
+                        .font(.system(size: 18, weight: .medium))
                     Text(languageManager.localizedString("使用 Google 登录"))
                 }
                 .font(.headline)
