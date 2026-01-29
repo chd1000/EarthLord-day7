@@ -27,5 +27,10 @@ enum ApocalypseTheme {
     static let success = Color(red: 0.2, green: 0.8, blue: 0.4)            // 成功/绿色
     static let warning = Color(red: 1.0, green: 0.8, blue: 0.0)            // 警告/黄色
     static let danger = Color(red: 1.0, green: 0.3, blue: 0.3)             // 危险/红色
+    static let error = danger                                               // 错误（别名）
     static let info = Color(red: 0.3, green: 0.7, blue: 1.0)               // 信息/蓝色
+
+    // MARK: - 表面色
+    static let surface = cardBackground                                     // 表面色（卡片背景别名）
+    static let secondary = Color(red: 0.5, green: 0.5, blue: 0.6)          // 次要色/灰紫
 }

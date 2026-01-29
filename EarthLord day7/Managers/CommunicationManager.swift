@@ -18,6 +18,11 @@ final class CommunicationManager: ObservableObject {
     @Published private(set) var isLoading = false
     @Published var errorMessage: String?
 
+    // 频道相关
+    @Published private(set) var channels: [CommunicationChannel] = []
+    @Published private(set) var subscribedChannels: [SubscribedChannel] = []
+    @Published private(set) var mySubscriptions: [ChannelSubscription] = []
+
     private let client = supabase
 
     private init() {}
@@ -129,6 +134,173 @@ final class CommunicationManager: ObservableObject {
 
     func isDeviceUnlocked(_ deviceType: DeviceType) -> Bool {
         devices.first(where: { $0.deviceType == deviceType })?.isUnlocked ?? false
+    }
+
+    // MARK: - 频道方法
+
+    /// 加载所有公开频道
+    func loadPublicChannels() async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            let response: [CommunicationChannel] = try await client
+                .from("communication_channels")
+                .select()
+                .eq("is_active", value: true)
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+
+            channels = response
+        } catch {
+            errorMessage = "加载频道失败: \(error.localizedDescription)"
+        }
+
+        isLoading = false
+    }
+
+    /// 加载用户订阅的频道
+    func loadSubscribedChannels(userId: UUID) async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            // 先加载订阅
+            let subscriptions: [ChannelSubscription] = try await client
+                .from("channel_subscriptions")
+                .select()
+                .eq("user_id", value: userId.uuidString)
+                .execute()
+                .value
+
+            mySubscriptions = subscriptions
+
+            if subscriptions.isEmpty {
+                subscribedChannels = []
+                isLoading = false
+                return
+            }
+
+            // 获取订阅频道的ID列表
+            let channelIds = subscriptions.map { $0.channelId.uuidString }
+
+            // 加载对应的频道信息
+            let channelsData: [CommunicationChannel] = try await client
+                .from("communication_channels")
+                .select()
+                .in("id", values: channelIds)
+                .execute()
+                .value
+
+            // 组合成 SubscribedChannel
+            subscribedChannels = subscriptions.compactMap { sub in
+                guard let channel = channelsData.first(where: { $0.id == sub.channelId }) else {
+                    return nil
+                }
+                return SubscribedChannel(channel: channel, subscription: sub)
+            }
+        } catch {
+            errorMessage = "加载订阅失败: \(error.localizedDescription)"
+        }
+
+        isLoading = false
+    }
+
+    /// 创建频道
+    func createChannel(userId: UUID, type: ChannelType, name: String, description: String?) async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            var params: [String: String] = [
+                "p_creator_id": userId.uuidString,
+                "p_channel_type": type.rawValue,
+                "p_name": name
+            ]
+            if let desc = description {
+                params["p_description"] = desc
+            }
+
+            try await client.rpc("create_channel_with_subscription", params: params).execute()
+
+            // 重新加载频道列表
+            await loadPublicChannels()
+            await loadSubscribedChannels(userId: userId)
+        } catch {
+            errorMessage = "创建频道失败: \(error.localizedDescription)"
+        }
+
+        isLoading = false
+    }
+
+    /// 订阅频道
+    func subscribeToChannel(userId: UUID, channelId: UUID) async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            try await client.rpc("subscribe_to_channel", params: [
+                "p_user_id": userId.uuidString,
+                "p_channel_id": channelId.uuidString
+            ]).execute()
+
+            // 重新加载订阅列表
+            await loadSubscribedChannels(userId: userId)
+            await loadPublicChannels()
+        } catch {
+            errorMessage = "订阅失败: \(error.localizedDescription)"
+        }
+
+        isLoading = false
+    }
+
+    /// 取消订阅
+    func unsubscribeFromChannel(userId: UUID, channelId: UUID) async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            try await client.rpc("unsubscribe_from_channel", params: [
+                "p_user_id": userId.uuidString,
+                "p_channel_id": channelId.uuidString
+            ]).execute()
+
+            // 重新加载订阅列表
+            await loadSubscribedChannels(userId: userId)
+            await loadPublicChannels()
+        } catch {
+            errorMessage = "取消订阅失败: \(error.localizedDescription)"
+        }
+
+        isLoading = false
+    }
+
+    /// 删除频道
+    func deleteChannel(channelId: UUID) async {
+        isLoading = true
+        errorMessage = nil
+
+        do {
+            try await client
+                .from("communication_channels")
+                .delete()
+                .eq("id", value: channelId.uuidString)
+                .execute()
+
+            // 从本地列表移除
+            channels.removeAll { $0.id == channelId }
+            subscribedChannels.removeAll { $0.channel.id == channelId }
+        } catch {
+            errorMessage = "删除频道失败: \(error.localizedDescription)"
+        }
+
+        isLoading = false
+    }
+
+    /// 检查是否已订阅
+    func isSubscribed(channelId: UUID) -> Bool {
+        mySubscriptions.contains { $0.channelId == channelId }
     }
 }
 
