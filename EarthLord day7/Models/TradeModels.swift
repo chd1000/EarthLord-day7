@@ -57,7 +57,7 @@ enum TradeItemType: String, Codable {
 // MARK: - 交易物品模型（JSON 格式）
 
 /// 交易物品（用于 JSON 序列化）
-struct TradeItem: Codable, Identifiable, Equatable {
+struct TradeItem: Codable, Identifiable, Equatable, Sendable {
     let itemId: UUID
     let itemType: String        // "normal" | "ai"
     let itemName: String
@@ -124,6 +124,7 @@ struct DBTradeOffer: Codable, Identifiable {
     let updatedAt: Date?
     let completedAt: Date?
     let completedByUserId: UUID?
+    let message: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -136,6 +137,7 @@ struct DBTradeOffer: Codable, Identifiable {
         case updatedAt = "updated_at"
         case completedAt = "completed_at"
         case completedByUserId = "completed_by_user_id"
+        case message
     }
 
     /// 获取状态枚举
@@ -237,6 +239,8 @@ struct DBTradeHistory: Codable, Identifiable {
     let completedAt: Date?
     var sellerRating: Int?
     var buyerRating: Int?
+    var sellerComment: String?
+    var buyerComment: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -247,6 +251,8 @@ struct DBTradeHistory: Codable, Identifiable {
         case completedAt = "completed_at"
         case sellerRating = "seller_rating"
         case buyerRating = "buyer_rating"
+        case sellerComment = "seller_comment"
+        case buyerComment = "buyer_comment"
     }
 
     /// 格式化完成时间
@@ -387,7 +393,7 @@ enum TradeError: Error, LocalizedError {
 // MARK: - RPC 响应模型
 
 /// 创建挂单响应
-struct CreateOfferResponse: Codable {
+struct CreateOfferResponse: Sendable {
     let success: Bool
     let offerId: UUID?
     let expiresAt: Date?
@@ -395,7 +401,7 @@ struct CreateOfferResponse: Codable {
     let itemId: UUID?
     let available: Int?
 
-    enum CodingKeys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey {
         case success
         case offerId = "offer_id"
         case expiresAt = "expires_at"
@@ -405,14 +411,26 @@ struct CreateOfferResponse: Codable {
     }
 }
 
+extension CreateOfferResponse: Decodable {
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        success = try container.decode(Bool.self, forKey: .success)
+        offerId = try container.decodeIfPresent(UUID.self, forKey: .offerId)
+        expiresAt = try container.decodeIfPresent(Date.self, forKey: .expiresAt)
+        error = try container.decodeIfPresent(String.self, forKey: .error)
+        itemId = try container.decodeIfPresent(UUID.self, forKey: .itemId)
+        available = try container.decodeIfPresent(Int.self, forKey: .available)
+    }
+}
+
 /// 接受挂单响应
-struct AcceptOfferResponse: Codable {
+struct AcceptOfferResponse: Sendable {
     let success: Bool
     let historyId: UUID?
     let error: String?
     let itemId: UUID?
 
-    enum CodingKeys: String, CodingKey {
+    private enum CodingKeys: String, CodingKey {
         case success
         case historyId = "history_id"
         case error
@@ -420,14 +438,48 @@ struct AcceptOfferResponse: Codable {
     }
 }
 
+extension AcceptOfferResponse: Decodable {
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        success = try container.decode(Bool.self, forKey: .success)
+        historyId = try container.decodeIfPresent(UUID.self, forKey: .historyId)
+        error = try container.decodeIfPresent(String.self, forKey: .error)
+        itemId = try container.decodeIfPresent(UUID.self, forKey: .itemId)
+    }
+}
+
 /// 取消挂单响应
-struct CancelOfferResponse: Codable {
+struct CancelOfferResponse: Sendable {
     let success: Bool
     let error: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case success, error
+    }
+}
+
+extension CancelOfferResponse: Decodable {
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        success = try container.decode(Bool.self, forKey: .success)
+        error = try container.decodeIfPresent(String.self, forKey: .error)
+    }
 }
 
 /// 评分响应
-struct RateTradeResponse: Codable {
+struct RateTradeResponse: Sendable {
     let success: Bool
     let error: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case success, error
+    }
+}
+
+extension RateTradeResponse: Decodable {
+    nonisolated init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        success = try container.decode(Bool.self, forKey: .success)
+        error = try container.decodeIfPresent(String.self, forKey: .error)
+    }
 }

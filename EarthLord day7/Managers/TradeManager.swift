@@ -48,11 +48,13 @@ class TradeManager: ObservableObject {
     ///   - offeringItems: 提供的物品列表
     ///   - requestingItems: 需求的物品列表（可选，nil 为开放式挂单）
     ///   - expiresHours: 过期时间（小时），默认 24
+    ///   - message: 留言（可选）
     /// - Returns: 创建的挂单 ID
     func createOffer(
         offeringItems: [TradeItem],
         requestingItems: [TradeItem]? = nil,
-        expiresHours: Int = 24
+        expiresHours: Int = 24,
+        message: String? = nil
     ) async throws -> UUID {
         isLoading = true
         errorMessage = nil
@@ -67,27 +69,14 @@ class TradeManager: ObservableObject {
         }
 
         do {
-            // 编码物品为 JSON
-            let encoder = JSONEncoder()
-            encoder.keyEncodingStrategy = .convertToSnakeCase
+            let params = CreateOfferParams(
+                offeringItems: offeringItems,
+                requestingItems: requestingItems?.isEmpty == false ? requestingItems : nil,
+                expiresHours: expiresHours,
+                message: message?.isEmpty == false ? message : nil
+            )
 
-            let offeringData = try encoder.encode(offeringItems)
-            let offeringJson = try JSONSerialization.jsonObject(with: offeringData)
-
-            var requestingJson: Any = NSNull()
-            if let requestingItems = requestingItems, !requestingItems.isEmpty {
-                let requestingData = try encoder.encode(requestingItems)
-                requestingJson = try JSONSerialization.jsonObject(with: requestingData)
-            }
-
-            let response: CreateOfferResponse = try await supabase
-                .rpc("create_trade_offer", params: [
-                    "p_offering_items": offeringJson,
-                    "p_requesting_items": requestingJson,
-                    "p_expires_hours": expiresHours
-                ])
-                .execute()
-                .value
+            let response = try await executeCreateTradeOffer(params: params)
 
             if response.success, let offerId = response.offerId {
                 print("🔄 创建挂单成功: \(offerId)")
@@ -132,22 +121,12 @@ class TradeManager: ObservableObject {
         defer { isLoading = false }
 
         do {
-            // 编码物品为 JSON
-            var buyerJson: Any = NSNull()
-            if let buyerItems = buyerItems, !buyerItems.isEmpty {
-                let encoder = JSONEncoder()
-                encoder.keyEncodingStrategy = .convertToSnakeCase
-                let buyerData = try encoder.encode(buyerItems)
-                buyerJson = try JSONSerialization.jsonObject(with: buyerData)
-            }
+            let params = AcceptOfferParams(
+                offerId: offerId.uuidString,
+                buyerItems: buyerItems?.isEmpty == false ? buyerItems : nil
+            )
 
-            let response: AcceptOfferResponse = try await supabase
-                .rpc("accept_trade_offer", params: [
-                    "p_offer_id": offerId.uuidString,
-                    "p_buyer_items": buyerJson
-                ])
-                .execute()
-                .value
+            let response = try await executeAcceptTradeOffer(params: params)
 
             if response.success, let historyId = response.historyId {
                 print("🔄 接受挂单成功: \(historyId)")
@@ -187,12 +166,9 @@ class TradeManager: ObservableObject {
         defer { isLoading = false }
 
         do {
-            let response: CancelOfferResponse = try await supabase
-                .rpc("cancel_trade_offer", params: [
-                    "p_offer_id": offerId.uuidString
-                ])
-                .execute()
-                .value
+            let params = CancelOfferParams(offerId: offerId.uuidString)
+
+            let response = try await executeCancelTradeOffer(params: params)
 
             if response.success {
                 print("🔄 取消挂单成功: \(offerId)")
@@ -312,19 +288,20 @@ class TradeManager: ObservableObject {
     /// - Parameters:
     ///   - historyId: 交易历史 ID
     ///   - rating: 评分 (1-5)
-    func rateTradeHistory(historyId: UUID, rating: Int) async throws {
+    ///   - comment: 评语（可选）
+    func rateTradeHistory(historyId: UUID, rating: Int, comment: String? = nil) async throws {
         guard rating >= 1 && rating <= 5 else {
             throw TradeError.invalidRating
         }
 
         do {
-            let response: RateTradeResponse = try await supabase
-                .rpc("rate_trade", params: [
-                    "p_history_id": historyId.uuidString,
-                    "p_rating": rating
-                ])
-                .execute()
-                .value
+            let params = RateTradeParams(
+                historyId: historyId.uuidString,
+                rating: rating,
+                comment: comment?.isEmpty == false ? comment : nil
+            )
+
+            let response = try await executeRateTradeRPC(params: params)
 
             if response.success {
                 print("🔄 评分成功: \(historyId) -> \(rating)")

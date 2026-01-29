@@ -143,11 +143,7 @@ struct ResourcesTabView: View {
             )
 
         case .trade:
-            placeholderView(
-                icon: "arrow.triangle.2.circlepath",
-                title: languageManager.localizedString("交易市场"),
-                subtitle: languageManager.localizedString("功能开发中")
-            )
+            TradeMainView()
         }
     }
 
