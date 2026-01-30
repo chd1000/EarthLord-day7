@@ -16,33 +16,40 @@ struct ChannelCenterView: View {
     @State private var searchText = ""
     @State private var showCreateSheet = false
     @State private var selectedChannel: CommunicationChannel?
+    @State private var navigateToChatChannel: CommunicationChannel?
 
     var body: some View {
-        VStack(spacing: 0) {
-            // 顶部标题栏
-            headerView
+        NavigationStack {
+            VStack(spacing: 0) {
+                // 顶部标题栏
+                headerView
 
-            // Tab 切换栏
-            tabBar
+                // Tab 切换栏
+                tabBar
 
-            // 内容区域
-            if selectedTab == 0 {
-                myChannelsView
-            } else {
-                discoverChannelsView
+                // 内容区域
+                if selectedTab == 0 {
+                    myChannelsView
+                } else {
+                    discoverChannelsView
+                }
             }
-        }
-        .background(ApocalypseTheme.background)
-        .sheet(isPresented: $showCreateSheet) {
-            CreateChannelSheet()
-                .environmentObject(authManager)
-        }
-        .sheet(item: $selectedChannel) { channel in
-            ChannelDetailView(channel: channel)
-                .environmentObject(authManager)
-        }
-        .task {
-            await loadData()
+            .background(ApocalypseTheme.background)
+            .sheet(isPresented: $showCreateSheet) {
+                CreateChannelSheet()
+                    .environmentObject(authManager)
+            }
+            .sheet(item: $selectedChannel) { channel in
+                ChannelDetailView(channel: channel)
+                    .environmentObject(authManager)
+            }
+            .navigationDestination(item: $navigateToChatChannel) { channel in
+                ChannelChatView(channel: channel)
+                    .environmentObject(authManager)
+            }
+            .task {
+                await loadData()
+            }
         }
     }
 
@@ -115,6 +122,11 @@ struct ChannelCenterView: View {
                         ForEach(communicationManager.subscribedChannels) { subscribedChannel in
                             ChannelRowView(channel: subscribedChannel.channel, isSubscribed: true)
                                 .onTapGesture {
+                                    // 订阅的频道点击进入聊天
+                                    navigateToChatChannel = subscribedChannel.channel
+                                }
+                                .onLongPressGesture {
+                                    // 长按查看详情
                                     selectedChannel = subscribedChannel.channel
                                 }
                         }

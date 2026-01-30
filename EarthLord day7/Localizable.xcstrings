@@ -4123,6 +4123,9 @@
         }
       }
     },
+    "成为第一个发言的幸存者" : {
+
+    },
     "成就" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4406,6 +4409,9 @@
     "搜索频道" : {
 
     },
+    "收音机模式：只能收听，无法发送消息" : {
+
+    },
     "敬请期待" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4555,6 +4561,9 @@
           }
         }
       }
+    },
+    "暂无消息" : {
+
     },
     "更多" : {
       "extractionState" : "manual",
@@ -5418,9 +5427,6 @@
         }
       }
     },
-    "聊天界面" : {
-
-    },
     "背包" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5846,6 +5852,9 @@
           }
         }
       }
+    },
+    "输入消息..." : {
+
     },
     "输入邮箱获取验证码" : {
       "extractionState" : "manual",
