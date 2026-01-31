@@ -315,4 +315,10 @@ struct ChannelMessage: Codable, Identifiable {
     }
 
     var deviceType: String? { metadata?.deviceType }
+
+    /// 发送者设备类型（从 metadata 中解析）
+    var senderDeviceType: DeviceType? {
+        guard let typeString = metadata?.deviceType else { return nil }
+        return DeviceType(rawValue: typeString)
+    }
 }

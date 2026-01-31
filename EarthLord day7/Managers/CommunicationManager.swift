@@ -9,6 +9,7 @@ import Foundation
 import Combine
 import Supabase
 import Realtime
+import CoreLocation
 
 @MainActor
 final class CommunicationManager: ObservableObject {
@@ -422,13 +423,23 @@ final class CommunicationManager: ObservableObject {
         do {
             let message = try insertion.decodeRecord(as: ChannelMessage.self, decoder: decoder)
 
-            // 只处理当前订阅的频道消息
-            if subscribedChannelIds.contains(message.channelId) {
-                if channelMessages[message.channelId] != nil {
+            // 第一关：检查是否是已订阅频道的消息
+            guard subscribedChannelIds.contains(message.channelId) else {
+                return
+            }
+
+            // 第二关：距离过滤（Day 35 新增）
+            guard shouldReceiveMessage(message) else {
+                return
+            }
+
+            // 添加到消息列表（防止重复）
+            if channelMessages[message.channelId] != nil {
+                if !channelMessages[message.channelId]!.contains(where: { $0.id == message.id }) {
                     channelMessages[message.channelId]?.append(message)
-                } else {
-                    channelMessages[message.channelId] = [message]
                 }
+            } else {
+                channelMessages[message.channelId] = [message]
             }
         } catch {
             print("解码消息失败: \(error)")
@@ -443,6 +454,104 @@ final class CommunicationManager: ObservableObject {
     /// 取消订阅频道消息（UI层调用）
     func unsubscribeFromChannelMessages(channelId: UUID) {
         subscribedChannelIds.remove(channelId)
+    }
+    // MARK: - 距离过滤逻辑
+
+    /// 判断是否应该接收该消息
+    func shouldReceiveMessage(_ message: ChannelMessage, channel: CommunicationChannel? = nil) -> Bool {
+        // 1. 私有频道不过滤（只对公共频道应用距离过滤）
+        if let channel = channel, channel.channelType != .publicChannel {
+            return true
+        }
+
+        // 2. 获取当前用户设备类型
+        guard let myDeviceType = currentDevice?.deviceType else {
+            print("⚠️ [距离过滤] 无法获取当前设备，保守显示消息")
+            return true  // 保守策略
+        }
+
+        // 3. 收音机可以接收所有消息
+        if myDeviceType == .radio {
+            print("📻 [距离过滤] 收音机用户，接收所有消息")
+            return true
+        }
+
+        // 4. 检查发送者设备类型
+        guard let senderDevice = message.senderDeviceType else {
+            print("⚠️ [距离过滤] 消息缺少设备类型，保守显示")
+            return true  // 向后兼容老消息
+        }
+
+        // 5. 收音机不能发送消息
+        if senderDevice == .radio {
+            print("🚫 [距离过滤] 收音机不能发送消息")
+            return false
+        }
+
+        // 6. 检查发送者位置
+        guard let senderLocation = message.senderLocation else {
+            print("⚠️ [距离过滤] 消息缺少位置信息，保守显示")
+            return true  // 保守策略
+        }
+
+        // 7. 获取当前用户位置
+        guard let myLocation = getCurrentLocation() else {
+            print("⚠️ [距离过滤] 无法获取当前位置，保守显示")
+            return true  // 保守策略
+        }
+
+        // 8. 计算距离
+        let distance = calculateDistance(
+            from: CLLocationCoordinate2D(latitude: myLocation.latitude, longitude: myLocation.longitude),
+            to: CLLocationCoordinate2D(latitude: senderLocation.latitude, longitude: senderLocation.longitude)
+        )
+
+        // 9. 设备矩阵判断
+        let canReceive = canReceiveMessage(senderDevice: senderDevice, myDevice: myDeviceType, distance: distance)
+
+        if canReceive {
+            print("✅ [距离过滤] 通过: 发送者=\(senderDevice.rawValue), 我=\(myDeviceType.rawValue), 距离=\(String(format: "%.1f", distance))km")
+        } else {
+            print("🚫 [距离过滤] 丢弃: 发送者=\(senderDevice.rawValue), 我=\(myDeviceType.rawValue), 距离=\(String(format: "%.1f", distance))km")
+        }
+
+        return canReceive
+    }
+
+    /// 设备矩阵判断
+    private func canReceiveMessage(senderDevice: DeviceType, myDevice: DeviceType, distance: Double) -> Bool {
+        if myDevice == .radio { return true }
+        if senderDevice == .radio { return false }
+
+        switch (senderDevice, myDevice) {
+        case (.walkieTalkie, .walkieTalkie): return distance <= 3.0
+        case (.walkieTalkie, .campRadio): return distance <= 30.0
+        case (.walkieTalkie, .satellite): return distance <= 100.0
+        case (.campRadio, .walkieTalkie): return distance <= 30.0
+        case (.campRadio, .campRadio): return distance <= 30.0
+        case (.campRadio, .satellite): return distance <= 100.0
+        case (.satellite, .walkieTalkie): return distance <= 100.0
+        case (.satellite, .campRadio): return distance <= 100.0
+        case (.satellite, .satellite): return distance <= 100.0
+        default: return false
+        }
+    }
+
+    /// 计算两点距离（公里）
+    private func calculateDistance(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> Double {
+        let fromLoc = CLLocation(latitude: from.latitude, longitude: from.longitude)
+        let toLoc = CLLocation(latitude: to.latitude, longitude: to.longitude)
+        return fromLoc.distance(from: toLoc) / 1000.0
+    }
+
+    /// 获取当前用户位置
+    private func getCurrentLocation() -> LocationPoint? {
+        // Day 35-B: 从 LocationManager 获取真实位置
+        guard let coordinate = LocationManager.shared.userLocation else {
+            print("⚠️ [距离过滤] LocationManager 无位置数据")
+            return nil
+        }
+        return LocationPoint(latitude: coordinate.latitude, longitude: coordinate.longitude)
     }
 }
 
