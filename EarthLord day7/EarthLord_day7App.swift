@@ -9,6 +9,34 @@ import SwiftUI
 import GoogleSignIn
 import UIKit
 
+// MARK: - 全局键盘收起配置
+
+extension UIApplication {
+    /// 收起键盘
+    func dismissKeyboard() {
+        sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+}
+
+// MARK: - 点击空白收起键盘的 View 修饰器
+
+struct DismissKeyboardOnTap: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .contentShape(Rectangle())
+            .onTapGesture {
+                UIApplication.shared.dismissKeyboard()
+            }
+    }
+}
+
+extension View {
+    /// 点击时收起键盘（用于需要的特定区域）
+    func dismissKeyboardOnTap() -> some View {
+        modifier(DismissKeyboardOnTap())
+    }
+}
+
 @main
 struct EarthLord_day7App: App {
     @StateObject private var authManager = AuthManager()
@@ -23,6 +51,9 @@ struct EarthLord_day7App: App {
         print("🔵 [App] 正在配置 Google Sign-In...")
         GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: googleClientID)
         print("✅ [App] Google Sign-In 配置完成")
+
+        // 配置全局键盘收起行为 - 滚动时收起键盘
+        UIScrollView.appearance().keyboardDismissMode = .onDrag
 
         // App生命周期监听 - 玩家位置管理
         setupAppLifecycleObservers()

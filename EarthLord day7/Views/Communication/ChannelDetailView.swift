@@ -17,6 +17,7 @@ struct ChannelDetailView: View {
 
     @State private var showDeleteConfirmation = false
     @State private var isProcessing = false
+    @State private var navigateToChat = false
 
     private var isCreator: Bool {
         authManager.currentUser?.id == channel.creatorId
@@ -26,8 +27,13 @@ struct ChannelDetailView: View {
         communicationManager.isSubscribed(channelId: channel.id)
     }
 
+    /// 是否可以进入聊天（创建者或已订阅）
+    private var canEnterChat: Bool {
+        isCreator || isSubscribed
+    }
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // 频道头像和基本信息
@@ -71,6 +77,10 @@ struct ChannelDetailView: View {
                 }
             } message: {
                 Text("删除频道后无法恢复，所有订阅者将自动取消订阅。确定要删除「\(channel.name)」吗？")
+            }
+            .navigationDestination(isPresented: $navigateToChat) {
+                ChannelChatView(channel: channel)
+                    .environmentObject(authManager)
             }
         }
     }
@@ -116,13 +126,22 @@ struct ChannelDetailView: View {
             .cornerRadius(20)
 
             // 订阅状态
-            if isSubscribed {
+            if isSubscribed || isCreator {
                 HStack(spacing: 4) {
                     Image(systemName: "checkmark.circle.fill")
-                    Text("已订阅")
+                    if isCreator {
+                        Text("已订阅 · 创建者")
+                    } else {
+                        Text("已订阅")
+                    }
                 }
                 .font(.caption)
+                .fontWeight(.medium)
                 .foregroundColor(ApocalypseTheme.success)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(ApocalypseTheme.success.opacity(0.15))
+                .cornerRadius(16)
             }
         }
     }
@@ -131,22 +150,18 @@ struct ChannelDetailView: View {
 
     private var infoCard: some View {
         VStack(spacing: 0) {
-            infoRow(title: "频道类型", value: channel.channelType.displayName, icon: channel.channelType.iconName, color: channelTypeColor)
+            infoRow(title: "类型", value: channel.channelType.displayName, icon: channel.channelType.iconName, color: channelTypeColor)
             Divider().background(ApocalypseTheme.textSecondary.opacity(0.2))
-            infoRow(title: "成员数量", value: "\(channel.memberCount) 人", icon: "person.2.fill", color: ApocalypseTheme.primary)
+            infoRow(title: "成员", value: "\(channel.memberCount)人", icon: "person.2.fill", color: ApocalypseTheme.primary)
             Divider().background(ApocalypseTheme.textSecondary.opacity(0.2))
             infoRow(title: "创建时间", value: formatDate(channel.createdAt), icon: "calendar", color: ApocalypseTheme.textSecondary)
 
             if let description = channel.description, !description.isEmpty {
                 Divider().background(ApocalypseTheme.textSecondary.opacity(0.2))
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "text.alignleft")
-                            .foregroundColor(ApocalypseTheme.textSecondary)
-                        Text("频道描述")
-                            .font(.subheadline)
-                            .foregroundColor(ApocalypseTheme.textSecondary)
-                    }
+                    Text("描述")
+                        .font(.subheadline)
+                        .foregroundColor(ApocalypseTheme.textSecondary)
                     Text(description)
                         .font(.body)
                         .foregroundColor(ApocalypseTheme.textPrimary)
@@ -182,6 +197,24 @@ struct ChannelDetailView: View {
 
     private var actionButtons: some View {
         VStack(spacing: 12) {
+            // 进入聊天按钮（创建者或已订阅可用）
+            Button {
+                if canEnterChat {
+                    navigateToChat = true
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                    Text("进入聊天")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(canEnterChat ? ApocalypseTheme.primary : ApocalypseTheme.textSecondary.opacity(0.3))
+                .foregroundColor(canEnterChat ? .white : ApocalypseTheme.textSecondary)
+                .cornerRadius(12)
+            }
+            .disabled(!canEnterChat)
+
             if isCreator {
                 // 创建者：显示删除按钮
                 Button {
@@ -266,7 +299,7 @@ struct ChannelDetailView: View {
 
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
         return formatter.string(from: date)
     }
 

@@ -44,7 +44,12 @@ struct CreateChannelSheet: View {
                 }
                 .padding()
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(ApocalypseTheme.background)
+            .onTapGesture {
+                // 点击空白区域收起键盘
+                UIApplication.shared.dismissKeyboard()
+            }
             .navigationTitle("创建频道")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

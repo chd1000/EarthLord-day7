@@ -80,6 +80,10 @@ struct ChannelChatView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
+            .scrollDismissesKeyboard(.interactively)
+            .onTapGesture {
+                UIApplication.shared.dismissKeyboard()
+            }
             .onChange(of: messages.count) { _, _ in
                 if let lastMessage = messages.last {
                     withAnimation(.easeOut(duration: 0.3)) {
