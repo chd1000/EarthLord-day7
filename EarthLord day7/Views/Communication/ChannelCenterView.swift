@@ -17,6 +17,7 @@ struct ChannelCenterView: View {
     @State private var showCreateSheet = false
     @State private var selectedChannel: CommunicationChannel?
     @State private var navigateToChatChannel: CommunicationChannel?
+    @State private var navigateToOfficialChannel = false
 
     var body: some View {
         NavigationStack {
@@ -45,6 +46,10 @@ struct ChannelCenterView: View {
             }
             .navigationDestination(item: $navigateToChatChannel) { channel in
                 ChannelChatView(channel: channel)
+                    .environmentObject(authManager)
+            }
+            .navigationDestination(isPresented: $navigateToOfficialChannel) {
+                OfficialChannelDetailView()
                     .environmentObject(authManager)
             }
             .task {
@@ -119,7 +124,16 @@ struct ChannelCenterView: View {
             } else {
                 ScrollView {
                     LazyVStack(spacing: 12) {
-                        ForEach(communicationManager.subscribedChannels) { subscribedChannel in
+                        // 官方频道置顶入口
+                        if let officialChannel = communicationManager.getOfficialChannel() {
+                            OfficialChannelEntryCard(channel: officialChannel)
+                                .onTapGesture {
+                                    navigateToOfficialChannel = true
+                                }
+                        }
+
+                        // 其他订阅的频道
+                        ForEach(communicationManager.subscribedChannels.filter { !communicationManager.isOfficialChannel($0.channel.id) }) { subscribedChannel in
                             ChannelRowView(channel: subscribedChannel.channel, isSubscribed: true)
                                 .onTapGesture {
                                     // 订阅的频道点击进入聊天
@@ -334,6 +348,54 @@ struct ChannelRowView: View {
         case .camp: return ApocalypseTheme.secondary
         case .satellite: return ApocalypseTheme.info
         }
+    }
+}
+
+// MARK: - 官方频道入口卡片
+
+struct OfficialChannelEntryCard: View {
+    let channel: CommunicationChannel
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // 官方图标
+            ZStack {
+                Circle()
+                    .fill(ApocalypseTheme.warning.opacity(0.2))
+                    .frame(width: 50, height: 50)
+                Image(systemName: "megaphone.fill")
+                    .font(.title3)
+                    .foregroundColor(ApocalypseTheme.warning)
+            }
+
+            // 频道信息
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(channel.name)
+                        .font(.headline)
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.caption)
+                        .foregroundColor(ApocalypseTheme.warning)
+                }
+                Text("官方公告和游戏资讯")
+                    .font(.caption)
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundColor(ApocalypseTheme.textSecondary)
+        }
+        .padding()
+        .background(ApocalypseTheme.cardBackground)
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(ApocalypseTheme.warning.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 

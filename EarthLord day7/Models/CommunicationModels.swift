@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 // MARK: - 设备类型
 enum DeviceType: String, Codable, CaseIterable {
@@ -227,11 +228,49 @@ struct LocationPoint: Codable {
     }
 }
 
+// MARK: - 消息分类（官方频道专用）
+enum MessageCategory: String, Codable, CaseIterable {
+    case survival = "survival"   // 生存指南
+    case news = "news"           // 游戏资讯
+    case mission = "mission"     // 任务发布
+    case alert = "alert"         // 紧急广播
+
+    var displayName: String {
+        switch self {
+        case .survival: return "生存指南"
+        case .news: return "游戏资讯"
+        case .mission: return "任务发布"
+        case .alert: return "紧急广播"
+        }
+    }
+
+    var iconName: String {
+        switch self {
+        case .survival: return "leaf.fill"
+        case .news: return "newspaper.fill"
+        case .mission: return "flag.fill"
+        case .alert: return "exclamationmark.triangle.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .survival: return Color(red: 0.2, green: 0.8, blue: 0.4)  // 绿色
+        case .news: return Color(red: 0.3, green: 0.7, blue: 1.0)      // 蓝色
+        case .mission: return Color(red: 1.0, green: 0.4, blue: 0.1)   // 橙色
+        case .alert: return Color(red: 1.0, green: 0.3, blue: 0.3)     // 红色
+        }
+    }
+}
+
 // MARK: - 消息元数据
 struct MessageMetadata: Codable {
     let deviceType: String?
+    let category: String?  // 消息分类（官方频道专用）
+
     enum CodingKeys: String, CodingKey {
         case deviceType = "device_type"
+        case category
     }
 }
 
@@ -320,5 +359,74 @@ struct ChannelMessage: Codable, Identifiable {
     var senderDeviceType: DeviceType? {
         guard let typeString = metadata?.deviceType else { return nil }
         return DeviceType(rawValue: typeString)
+    }
+
+    /// 消息分类（官方频道专用）
+    var category: MessageCategory? {
+        guard let categoryString = metadata?.category else { return nil }
+        return MessageCategory(rawValue: categoryString)
+    }
+}
+
+// MARK: - 用户资料模型
+struct UserProfile: Codable, Identifiable {
+    let id: UUID
+    let userId: UUID
+    var callsign: String?
+    let createdAt: Date
+    var updatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userId = "user_id"
+        case callsign
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+}
+
+// MARK: - 频道摘要（消息聚合用）
+struct ChannelSummary: Identifiable {
+    let channel: CommunicationChannel
+    let lastMessage: ChannelMessage?
+    let unreadCount: Int
+
+    var id: UUID { channel.id }
+}
+
+// MARK: - 聚合消息模型（RPC返回）
+struct AggregatedMessage: Codable, Identifiable {
+    let messageId: UUID
+    let channelId: UUID
+    let channelName: String
+    let channelType: String
+    let senderId: UUID?
+    let senderCallsign: String?
+    let content: String
+    let createdAt: Date
+
+    var id: UUID { messageId }
+
+    enum CodingKeys: String, CodingKey {
+        case messageId = "message_id"
+        case channelId = "channel_id"
+        case channelName = "channel_name"
+        case channelType = "channel_type"
+        case senderId = "sender_id"
+        case senderCallsign = "sender_callsign"
+        case content
+        case createdAt = "created_at"
+    }
+
+    var timeAgo: String {
+        let interval = Date().timeIntervalSince(createdAt)
+        if interval < 60 { return "刚刚" }
+        else if interval < 3600 { return "\(Int(interval / 60))分钟前" }
+        else if interval < 86400 { return "\(Int(interval / 3600))小时前" }
+        else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MM-dd HH:mm"
+            return formatter.string(from: createdAt)
+        }
     }
 }

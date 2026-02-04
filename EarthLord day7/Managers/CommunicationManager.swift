@@ -15,6 +15,9 @@ import CoreLocation
 final class CommunicationManager: ObservableObject {
     static let shared = CommunicationManager()
 
+    // MARK: - 官方频道常量
+    static let officialChannelId = UUID(uuidString: "00000000-0000-0000-0000-000000000000")!
+
     @Published private(set) var devices: [CommunicationDevice] = []
     @Published private(set) var currentDevice: CommunicationDevice?
     @Published private(set) var isLoading = false
@@ -552,6 +555,127 @@ final class CommunicationManager: ObservableObject {
             return nil
         }
         return LocationPoint(latitude: coordinate.latitude, longitude: coordinate.longitude)
+    }
+
+    // MARK: - 官方频道方法
+
+    /// 判断是否为官方频道
+    func isOfficialChannel(_ channelId: UUID) -> Bool {
+        return channelId == Self.officialChannelId
+    }
+
+    /// 确保用户订阅官方频道
+    func ensureOfficialChannelSubscribed(userId: UUID) async {
+        // 检查是否已订阅
+        let isSubscribed = mySubscriptions.contains { $0.channelId == Self.officialChannelId }
+        if isSubscribed { return }
+
+        // 强制订阅官方频道
+        do {
+            try await client.rpc("subscribe_to_channel", params: [
+                "p_user_id": userId.uuidString,
+                "p_channel_id": Self.officialChannelId.uuidString
+            ]).execute()
+
+            // 重新加载订阅列表
+            await loadSubscribedChannels(userId: userId)
+        } catch {
+            print("订阅官方频道失败: \(error.localizedDescription)")
+        }
+    }
+
+    /// 获取官方频道
+    func getOfficialChannel() -> CommunicationChannel? {
+        return subscribedChannels.first { $0.channel.id == Self.officialChannelId }?.channel
+            ?? channels.first { $0.id == Self.officialChannelId }
+    }
+
+    // MARK: - 消息聚合方法
+
+    /// 获取频道摘要列表（官方频道置顶）
+    func getChannelSummaries() -> [ChannelSummary] {
+        var summaries: [ChannelSummary] = []
+
+        for subscribedChannel in subscribedChannels {
+            let messages = channelMessages[subscribedChannel.channel.id] ?? []
+            let lastMessage = messages.last
+            let summary = ChannelSummary(
+                channel: subscribedChannel.channel,
+                lastMessage: lastMessage,
+                unreadCount: 0  // 暂时不实现未读计数
+            )
+            summaries.append(summary)
+        }
+
+        // 排序：官方频道置顶，其他按最新消息时间排序
+        summaries.sort { lhs, rhs in
+            let lhsIsOfficial = lhs.channel.id == Self.officialChannelId
+            let rhsIsOfficial = rhs.channel.id == Self.officialChannelId
+
+            if lhsIsOfficial != rhsIsOfficial {
+                return lhsIsOfficial
+            }
+
+            let lhsTime = lhs.lastMessage?.createdAt ?? lhs.channel.createdAt
+            let rhsTime = rhs.lastMessage?.createdAt ?? rhs.channel.createdAt
+            return lhsTime > rhsTime
+        }
+
+        return summaries
+    }
+
+    /// 加载所有订阅频道的最新消息
+    func loadAllChannelLatestMessages() async {
+        for subscribedChannel in subscribedChannels {
+            let channelId = subscribedChannel.channel.id
+            if channelMessages[channelId] == nil || channelMessages[channelId]?.isEmpty == true {
+                do {
+                    let response: [ChannelMessage] = try await client
+                        .from("channel_messages")
+                        .select()
+                        .eq("channel_id", value: channelId.uuidString)
+                        .order("created_at", ascending: false)
+                        .limit(1)
+                        .execute()
+                        .value
+
+                    if !response.isEmpty {
+                        channelMessages[channelId] = response
+                    }
+                } catch {
+                    print("加载频道 \(channelId) 最新消息失败: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    // MARK: - 用户资料方法
+
+    /// 获取或创建用户资料
+    func getOrCreateUserProfile() async -> UserProfile? {
+        do {
+            let response: [UserProfile] = try await client
+                .rpc("get_or_create_user_profile")
+                .execute()
+                .value
+            return response.first
+        } catch {
+            print("获取用户资料失败: \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    /// 更新用户呼号
+    func updateUserCallsign(_ callsign: String) async -> Bool {
+        do {
+            try await client
+                .rpc("update_user_callsign", params: ["p_callsign": callsign])
+                .execute()
+            return true
+        } catch {
+            errorMessage = "更新呼号失败: \(error.localizedDescription)"
+            return false
+        }
     }
 }
 

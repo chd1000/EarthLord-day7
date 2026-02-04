@@ -13,6 +13,8 @@ struct DeviceManagementView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var showUnlockAlert = false
     @State private var selectedDeviceForUnlock: DeviceType?
+    @State private var showCallsignSheet = false
+    @State private var currentCallsign: String?
 
     var body: some View {
         ScrollView {
@@ -28,6 +30,9 @@ struct DeviceManagementView: View {
                         .foregroundColor(ApocalypseTheme.textSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+
+                // 呼号设置入口
+                callsignCard
 
                 // 当前设备卡片
                 if let current = communicationManager.currentDevice {
@@ -55,6 +60,63 @@ struct DeviceManagementView: View {
             if let device = selectedDeviceForUnlock {
                 Text(device.unlockRequirement)
             }
+        }
+        .sheet(isPresented: $showCallsignSheet) {
+            CallsignSettingsSheet()
+        }
+        .task {
+            await loadCallsign()
+        }
+    }
+
+    // MARK: - 呼号设置卡片
+
+    private var callsignCard: some View {
+        Button {
+            showCallsignSheet = true
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(ApocalypseTheme.info.opacity(0.2))
+                        .frame(width: 50, height: 50)
+                    Image(systemName: "person.text.rectangle")
+                        .font(.system(size: 22))
+                        .foregroundColor(ApocalypseTheme.info)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("我的呼号")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(ApocalypseTheme.textPrimary)
+
+                    if let callsign = currentCallsign, !callsign.isEmpty {
+                        Text(callsign)
+                            .font(.headline)
+                            .foregroundColor(ApocalypseTheme.primary)
+                    } else {
+                        Text("点击设置呼号")
+                            .font(.caption)
+                            .foregroundColor(ApocalypseTheme.textSecondary)
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(ApocalypseTheme.textSecondary)
+            }
+            .padding()
+            .background(ApocalypseTheme.cardBackground)
+            .cornerRadius(12)
+        }
+    }
+
+    private func loadCallsign() async {
+        if let profile = await communicationManager.getOrCreateUserProfile() {
+            currentCallsign = profile.callsign
         }
     }
 
